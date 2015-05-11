@@ -5,7 +5,8 @@ version = "0.1.0"
 authors = ["Alvaro Polo <apoloval@gmail.com>"]
 
 [dependencies]
-docopt = "0.6.44"
+docopt = "*"
+rustc-serialize = "*"
 
 [[bin]]
 name = "mcp"
