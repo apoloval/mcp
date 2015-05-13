@@ -27,9 +27,9 @@ impl Block {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum File {
-	Bin(String, usize, usize, usize, Vec<u8>),
-    Custom(Vec<u8>)
+pub enum File<'a> {
+	Bin(String, usize, usize, usize, &'a[u8]),
+    Custom(&'a[u8])
 }
 
 pub struct Files<'a> {
@@ -38,8 +38,10 @@ pub struct Files<'a> {
 }
 
 impl<'a> Iterator for Files<'a> {
-    type Item = File;
-    fn next(&mut self) -> Option<File> {
+    
+    type Item = File<'a>;
+    
+    fn next(&mut self) -> Option<File<'a>> {
         while self.i < self.tape.blocks.len() {
             let block = &self.tape.blocks[self.i];
             if block.is_bin_header() {
@@ -50,10 +52,10 @@ impl<'a> Iterator for Files<'a> {
                 let start = (content[4] as usize) | (content[5] as usize) << 8;
                 let data = &content[6..];
                 self.i = self.i + 2;
-                return Some(File::Bin(name, begin, end, start, Vec::from(data)));
+                return Some(File::Bin(name, begin, end, start, data));
             } else {
                 self.i = self.i + 1;
-                return Some(File::Custom(block.data.clone()));
+                return Some(File::Custom(&block.data[..]));
             }
         }
         None
@@ -121,7 +123,7 @@ mod test {
     macro_rules! assert_bin {
         ($f:expr, $n:expr, $b:expr, $e:expr, $s:expr, $d:expr) => {
             match $f {
-            &File::Bin(ref name, begin, end, start, ref data) => {
+            &File::Bin(ref name, begin, end, start, data) => {
                 assert_eq!($n, name);
                 assert_eq!($b, begin);
                 assert_eq!($e, end);
@@ -152,8 +154,9 @@ mod test {
             0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
         ];
         let tape = Tape::from_bytes(&bytes).unwrap();        
-        let file = tape.files().next().unwrap();
-        assert_bin!(&file, 
-            "FOOBAR", 0x8000, 0x8008, 0x0000, &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07]);
+        for f in tape.files() {
+            assert_bin!(&f, 
+                "FOOBAR", 0x8000, 0x8008, 0x0000, &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07]);
+        } 
     } 
 }
