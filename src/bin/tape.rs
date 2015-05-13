@@ -26,16 +26,43 @@ impl Block {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum File {
 	Bin(String, usize, usize, usize, Vec<u8>),
     Custom(Vec<u8>)
 }
 
+pub struct Files<'a> {
+    tape: &'a Tape,
+    i: usize,
+}
+
+impl<'a> Iterator for Files<'a> {
+    type Item = File;
+    fn next(&mut self) -> Option<File> {
+        while self.i < self.tape.blocks.len() {
+            let block = &self.tape.blocks[self.i];
+            if block.is_bin_header() {
+                let name = block.file_name().unwrap().to_string();
+                let content = &self.tape.blocks[self.i+1].data;
+                let begin = (content[0] as usize) | (content[1] as usize) << 8;
+                let end = (content[2] as usize) | (content[3] as usize) << 8;
+                let start = (content[4] as usize) | (content[5] as usize) << 8;
+                let data = &content[6..];
+                self.i = self.i + 2;
+                return Some(File::Bin(name, begin, end, start, Vec::from(data)));
+            } else {
+                self.i = self.i + 1;
+                return Some(File::Custom(block.data.clone()));
+            }
+        }
+        None
+    }
+}
+
 #[derive(Debug)]
 pub struct Tape {
     blocks: Vec<Block>,
-	files: Vec<File>,
 }
 
 #[derive(Debug)]
@@ -57,26 +84,10 @@ impl Tape {
 	}
 
 	pub fn from_bytes(bytes: &[u8]) -> Result<Tape, LoadError> {
-		let mut tape = Tape { blocks: Tape::parse_blocks(bytes), files: vec![] };
-        let mut i = 0;
-        while i < tape.blocks.len() {
-            let block = &tape.blocks[i];
-            if block.is_bin_header() {
-                let name = block.file_name().unwrap().to_string();
-                let content = &tape.blocks[i+1].data;
-                let begin = (content[0] as usize) | (content[1] as usize) << 8;
-                let end = (content[2] as usize) | (content[3] as usize) << 8;
-                let start = (content[4] as usize) | (content[5] as usize) << 8;
-                let data = &content[6..];
-                tape.files.push(File::Bin(name, begin, end, start, Vec::from(data)));
-                i = i + 2;
-            } else {
-                tape.files.push(File::Custom(block.data.clone()));
-                i = i + 1;
-            }
-        }
-		Ok(tape)
+		Ok(Tape { blocks: Tape::parse_blocks(bytes) })
 	}
+
+    pub fn files(&self) -> Files { Files { tape: self, i: 0 } }
 
     fn parse_blocks(bytes: &[u8]) -> Vec<Block> {
         let mut blocks: Vec<Block> = vec![];
@@ -127,7 +138,7 @@ mod test {
     	let bytes: Vec<u8> = vec![];
     	let tape = Tape::from_bytes(&bytes);
         assert!(tape.is_ok());
-        assert_eq!(0, tape.unwrap().files.len());
+        assert_eq!(None, tape.unwrap().files().next());
     }
 
     #[test]
@@ -141,8 +152,8 @@ mod test {
             0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
         ];
         let tape = Tape::from_bytes(&bytes).unwrap();        
-        assert_eq!(1, tape.files.len());
-        assert_bin!(&tape.files[0], 
+        let file = tape.files().next().unwrap();
+        assert_bin!(&file, 
             "FOOBAR", 0x8000, 0x8008, 0x0000, &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07]);
     } 
 }
