@@ -14,6 +14,10 @@ use std::str::from_utf8;
 pub struct Block { data: Vec<u8>, }
 
 impl Block {
+
+    pub fn from_bytes(bytes: &[u8]) -> Block {
+        Block { data: Vec::from(bytes) }
+    }
  
     pub fn is_bin_header(&self) -> bool {
         self.data.len() >= 16 && 
@@ -21,7 +25,14 @@ impl Block {
     }
 
     pub fn file_name(&self) -> Option<&str> {
-        if self.is_bin_header() { from_utf8(&self.data[10..16]).ok() } 
+        if self.is_bin_header() { 
+            let name = &self.data[10..16];
+            let mut last = 6;
+            for i in (0..6).rev() {
+                if name[i] == 0 { last = i }
+            }
+            from_utf8(&name[..last]).ok() 
+        } 
         else { None }
     }
 }
@@ -108,7 +119,7 @@ impl Tape {
         for i in 0..hindex.len() {
             let from = hindex[i] + 8;
             let to = if i == hindex.len() - 1 { bytes.len() } else { hindex[i+1] };
-            let block = Block { data: Vec::from(&bytes[from..to]) };
+            let block = Block::from_bytes(&bytes[from..to]);
             blocks.push(block);
         }
         blocks
@@ -133,6 +144,34 @@ mod test {
             _ => panic!("unexpected file"),
         }
         }
+    }
+
+    #[test]
+    fn should_detect_bin_header_block() {
+        let bytes: Vec<u8> = vec![
+            0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0,
+            0x46, 0x4f, 0x4f, 0x42, 0x41, 0x52,
+            0x1f, 0xa6, 0xde, 0xba, 0xcc, 0x13, 0x7d, 0x74,
+            0x00, 0x80, 0x08, 0x80, 0x00, 0x00,
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
+        ];
+        let block = Block::from_bytes(&bytes);
+        assert!(block.is_bin_header());
+        assert_eq!("FOOBAR", block.file_name().unwrap());
+    }
+
+    #[test]
+    fn should_detect_block_with_short_name() {
+        let bytes: Vec<u8> = vec![
+            0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0,
+            0x46, 0x4f, 0x4f, 0x00, 0x00, 0x00,
+            0x1f, 0xa6, 0xde, 0xba, 0xcc, 0x13, 0x7d, 0x74,
+            0x00, 0x80, 0x08, 0x80, 0x00, 0x00,
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
+        ];
+        let block = Block::from_bytes(&bytes);
+        assert!(block.is_bin_header());
+        assert_eq!("FOO", block.file_name().unwrap());
     }
 
     #[test]
