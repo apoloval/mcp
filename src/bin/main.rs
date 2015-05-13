@@ -10,6 +10,7 @@ extern crate docopt;
 extern crate rustc_serialize;
 
 mod args;
+mod tape;
 
 #[allow(dead_code)]
 fn main() {
