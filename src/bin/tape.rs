@@ -93,6 +93,8 @@ impl Block {
 #[derive(Debug, PartialEq)]
 pub enum File<'a> {
 	Bin(String, usize, usize, usize, &'a[u8]),
+    Basic(String, &'a[u8]),
+    Ascii(String, Vec<&'a[u8]>),
     Custom(&'a[u8])
 }
 
@@ -107,7 +109,8 @@ impl<'a> Iterator for Files<'a> {
     type Item = File<'a>;
     
     fn next(&mut self) -> Option<File<'a>> {
-        while self.i < self.tape.blocks.len() {
+        let nblocks = self.tape.blocks.len();
+        while self.i < nblocks {
             let block = &self.tape.blocks[self.i];
             if block.is_bin_header() {
                 let name = block.file_name().unwrap().to_string();
@@ -118,6 +121,22 @@ impl<'a> Iterator for Files<'a> {
                 let data = &content[6..];
                 self.i = self.i + 2;
                 return Some(File::Bin(name, begin, end, start, data));
+            } else if block.is_basic_header() {
+                let name = block.file_name().unwrap().to_string();
+                let content = &self.tape.blocks[self.i+1].data;
+                self.i = self.i + 1;                
+                return Some(File::Basic(name, &content[..]));
+            } else if block.is_ascii_header() {
+                let name = block.file_name().unwrap().to_string();
+                let mut data = Vec::<&[u8]>::new();
+                self.i = self.i + 1;
+                while {
+                    let chunk = &self.tape.blocks[self.i].data;
+                    data.push(chunk);
+                    self.i < nblocks && !chunk.contains(&0x1a)
+                } { self.i = self.i + 1 }
+                self.i = self.i + 1;
+                return Some(File::Ascii(name, data));
             } else {
                 self.i = self.i + 1;
                 return Some(File::Custom(&block.data[..]));
@@ -160,6 +179,9 @@ impl Tape {
 		Tape { blocks: Tape::parse_blocks(bytes) }
 	}
 
+    /// Returns the blocks of this tape. 
+    pub fn blocks(&self) -> &[Block] { &self.blocks[..] }
+
     /// Return the files contained in the tape. 
     ///
     /// This function returns an `Iterator` over the files found in the tape blocks. 
@@ -193,6 +215,8 @@ impl Tape {
 #[cfg(test)]
 mod test {
 
+    use std::iter::FromIterator;
+
     use super::*;
 
     macro_rules! assert_bin {
@@ -203,6 +227,18 @@ mod test {
                 assert_eq!($b, begin);
                 assert_eq!($e, end);
                 assert_eq!($s, start);
+                assert_eq!($d, &data[..]);
+            },
+            _ => panic!("unexpected file"),
+        }
+        }
+    }
+
+    macro_rules! assert_ascii {
+        ($f:expr, $n:expr, $d:expr) => {
+            match $f {
+            &File::Ascii(ref name, ref data) => {
+                assert_eq!($n, name);
                 assert_eq!($d, &data[..]);
             },
             _ => panic!("unexpected file"),
@@ -271,23 +307,57 @@ mod test {
     }
 
     #[test]
-    fn should_load_bin_file() {
+    fn should_load_tape_with_some_blocks() {
         let bytes: Vec<u8> = vec![
             0x1f, 0xa6, 0xde, 0xba, 0xcc, 0x13, 0x7d, 0x74,
             0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 
-            0xd0, 0xd0, 0x46, 0x4f, 0x4f, 0x42, 0x41, 0x52,
+            0xd0, 0xd0, 0x46, 0x49, 0x4c, 0x45, 0x31, 0x00,
             0x1f, 0xa6, 0xde, 0xba, 0xcc, 0x13, 0x7d, 0x74,
             0x00, 0x80, 0x08, 0x80, 0x00, 0x00, 0x01, 0x02, 
-            0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a
+            0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x1f, 
+            0xa6, 0xde, 0xba, 0xcc, 0x13, 0x7d, 0x74, 0xea, 
+            0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 
+            0xea, 0x46, 0x49, 0x4c, 0x45, 0x32, 0x00, 0x1f, 
+            0xa6, 0xde, 0xba, 0xcc, 0x13, 0x7d, 0x74, 0x41, 
+            0x42, 0x43, 0x44, 0x1a, 
+        ];
+        let tape = Tape::from_bytes(&bytes);
+        assert_eq!(4, tape.blocks().len());
+
+        assert!(tape.blocks()[0].is_bin_header());
+        assert_eq!("FILE1", tape.blocks()[0].file_name().unwrap());
+
+        assert!(tape.blocks()[2].is_ascii_header());
+        assert_eq!("FILE2", tape.blocks()[2].file_name().unwrap());
+    }
+
+    #[test]
+    fn should_load_tape_with_some_files() {
+        let bytes: Vec<u8> = vec![
+            0x1f, 0xa6, 0xde, 0xba, 0xcc, 0x13, 0x7d, 0x74,
+            0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 
+            0xd0, 0xd0, 0x46, 0x49, 0x4c, 0x45, 0x31, 0x00,
+            0x1f, 0xa6, 0xde, 0xba, 0xcc, 0x13, 0x7d, 0x74,
+            0x00, 0x80, 0x08, 0x80, 0x00, 0x00, 0x01, 0x02, 
+            0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x1f, 
+            0xa6, 0xde, 0xba, 0xcc, 0x13, 0x7d, 0x74, 0xea, 
+            0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 
+            0xea, 0x46, 0x49, 0x4c, 0x45, 0x32, 0x00, 0x1f, 
+            0xa6, 0xde, 0xba, 0xcc, 0x13, 0x7d, 0x74, 0x41, 
+            0x42, 0x43, 0x44, 0x1f, 0xa6, 0xde, 0xba, 0xcc, 
+            0x13, 0x7d, 0x74, 0x45, 0x46, 0x47, 0x1a,
         ];
         let tape = Tape::from_bytes(&bytes);        
-        for f in tape.files() {
-            assert_bin!(&f, 
-                "FOOBAR", 
-                0x8000, 
-                0x8008, 
-                0x0000, 
-                &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a]);
-        } 
+        let files = Vec::from_iter(tape.files());
+        assert_eq!(2, files.len());
+
+        assert_bin!(&files[0], 
+            "FILE1", 0x8000, 0x8008, 0x0000, 
+            &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09]);
+
+        assert_ascii!(&files[1], 
+            "FILE2", 
+            vec![&[0x41, 0x42, 0x43, 0x44 ],
+                 &[0x45, 0x46, 0x47, 0x1a ]]);
     } 
 }
