@@ -41,9 +41,29 @@ impl Block {
             self.data[..10] == [0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0]
     }
 
+    /// Returns `true` if the block is detected as a Basic header.
+    ///
+    /// A Basic header is comprised by `0xd3d3d3d3d3d3d3d3d3d3` followed by six bytes for
+    /// the name of the Basic file. This function returns `true` if the block data match
+    /// this pattern, `false` otherwise. 
+    pub fn is_basic_header(&self) -> bool {
+        self.data.len() == 16 && 
+            self.data[..10] == [0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3]
+    }
+
+    /// Returns `true` if the block is detected as an ASCII header.
+    ///
+    /// An ASCII header is comprised by `0xeaeaeaeaeaeaeaeaeaea` followed by six bytes for
+    /// the name of the ASCII file. This function returns `true` if the block data match
+    /// this pattern, `false` otherwise. 
+    pub fn is_ascii_header(&self) -> bool {
+        self.data.len() == 16 && 
+            self.data[..10] == [0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea]
+    }
+
     /// Returns the file name in case of a binary, ascii or basic header, `None` otherwise. 
     pub fn file_name(&self) -> Option<&str> {
-        if self.is_bin_header() { 
+        if self.is_bin_header() || self.is_basic_header() || self.is_ascii_header() { 
             let name = &self.data[10..16];
             let mut last = 6;
             for i in (0..6).rev() {
@@ -202,13 +222,44 @@ mod test {
     }
 
     #[test]
+    fn should_detect_basic_header_block() {
+        let bytes: Vec<u8> = vec![
+            0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3,
+            0x46, 0x4f, 0x4f, 0x42, 0x41, 0x52,
+        ];
+        let block = Block::from_data(&bytes);
+        assert!(block.is_basic_header());
+        assert_eq!("FOOBAR", block.file_name().unwrap());
+    }
+
+    #[test]
+    fn should_detect_ascii_header_block() {
+        let bytes: Vec<u8> = vec![
+            0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea,
+            0x46, 0x4f, 0x4f, 0x42, 0x41, 0x52,
+        ];
+        let block = Block::from_data(&bytes);
+        assert!(block.is_ascii_header());
+        assert_eq!("FOOBAR", block.file_name().unwrap());
+    }
+
+    #[test]
+    fn should_return_no_name_on_non_header_block() {
+        let bytes: Vec<u8> = vec![
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a,
+            0x46, 0x4f, 0x4f, 0x00, 0x00, 0x00,
+        ];
+        let block = Block::from_data(&bytes);
+        assert_eq!(None, block.file_name());
+    }
+
+    #[test]
     fn should_detect_block_with_short_name() {
         let bytes: Vec<u8> = vec![
             0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0,
             0x46, 0x4f, 0x4f, 0x00, 0x00, 0x00,
         ];
         let block = Block::from_data(&bytes);
-        assert!(block.is_bin_header());
         assert_eq!("FOO", block.file_name().unwrap());        
     }
 
