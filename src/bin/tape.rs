@@ -78,26 +78,17 @@ pub struct Tape {
     blocks: Vec<Block>,
 }
 
-#[derive(Debug)]
-pub enum LoadError {
-	Io(IoError),
-}
-
-impl From<IoError> for LoadError {
-	fn from(e: IoError) -> LoadError { LoadError::Io(e) }
-}
-
 impl Tape {
 
 	#[allow(dead_code)]
-	pub fn read(input: &mut Read) -> Result<Tape, LoadError> {
+	pub fn read(input: &mut Read) -> Result<Tape, IoError> {
 		let mut bytes: Vec<u8> = vec![];
 		try!(input.read_to_end(&mut bytes));
-		Tape::from_bytes(&bytes[..])
+		Ok(Tape::from_bytes(&bytes[..]))
 	}
 
-	pub fn from_bytes(bytes: &[u8]) -> Result<Tape, LoadError> {
-		Ok(Tape { blocks: Tape::parse_blocks(bytes) })
+	pub fn from_bytes(bytes: &[u8]) -> Tape {
+		Tape { blocks: Tape::parse_blocks(bytes) }
 	}
 
     pub fn files(&self) -> Files { Files { tape: self, i: 0 } }
@@ -178,8 +169,7 @@ mod test {
     fn should_load_empty_tape() {
     	let bytes: Vec<u8> = vec![];
     	let tape = Tape::from_bytes(&bytes);
-        assert!(tape.is_ok());
-        assert_eq!(None, tape.unwrap().files().next());
+        assert_eq!(None, tape.files().next());
     }
 
     #[test]
@@ -192,7 +182,7 @@ mod test {
             0x00, 0x80, 0x08, 0x80, 0x00, 0x00,
             0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
         ];
-        let tape = Tape::from_bytes(&bytes).unwrap();        
+        let tape = Tape::from_bytes(&bytes);        
         for f in tape.files() {
             assert_bin!(&f, 
                 "FOOBAR", 0x8000, 0x8008, 0x0000, &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07]);
