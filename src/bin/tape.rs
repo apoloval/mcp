@@ -180,6 +180,9 @@ pub struct Tape {
 
 impl Tape {
 
+    /// Create a new empty tape.
+    pub fn new() -> Tape { Tape { blocks: vec![] }}
+
     /// Read a `Tape` instance from the given `Read` object.
     ///
     /// This function returns a new `Tape` instance as result of processing the
@@ -210,6 +213,24 @@ impl Tape {
     ///
     pub fn files(&self) -> Files { Files { tape: self, i: 0 } }
 
+    /// Append a binary file to this tape
+    ///
+    /// This method appends a binary file to the tape by generating the corresponding
+    /// header & data blocks for the file from the following arguments:
+    ///
+    /// * `name`: the six bytes that conforms the file name
+    /// * `data`: the binary file content
+    ///
+    pub fn append_bin(&mut self, name: &[u8;6], data: &[u8]) {
+        let hblock = Block::from_data(&[
+            0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0,
+            name[0], name[1], name[2], name[3], name[4], name[5],
+        ]);
+        let dblock = Block::from_data(data);
+        self.blocks.push(hblock);
+        self.blocks.push(dblock);
+    }
+
     fn parse_blocks(bytes: &[u8]) -> Vec<Block> {
         let mut blocks: Vec<Block> = vec![];
         let mut hindex: Vec<usize> = vec![];
@@ -237,6 +258,7 @@ impl Tape {
 #[cfg(test)]
 mod test {
 
+    use std::cmp::min;
     use std::iter::FromIterator;
 
     use super::*;
@@ -383,5 +405,24 @@ mod test {
             "FILE2",
             vec![&[0x41, 0x42, 0x43, 0x44 ],
                  &[0x45, 0x46, 0x47, 0x1a ]]);
+    }
+
+    #[test]
+    fn should_add_bin_file() {
+        let mut tape = Tape::new();
+        let data = [ 0x00, 0x80, 0x04, 0x80, 0x00, 0x80, 0x00, 0x01, 0x02, 0x03 ];
+        tape.append_bin(&to_name(&"F1".to_string()), &data);
+        let files = Vec::from_iter(tape.files());
+        assert_eq!(1, files.len());
+        assert_eq!("F1.bin", files[0].name().unwrap());
+        assert_bin!(&files[0],
+            "F1", 0x8000, 0x8004, 0x8000, &[0x00, 0x01, 0x02, 0x03]);
+    }
+
+    fn to_name(s: &String) -> [u8;6] {
+        let mut name: [u8; 6] = [0; 6];
+        let bytes = s.as_bytes();
+        for i in 0..min(5, s.len()) { name[i] = bytes[i] }
+        name
     }
 }
