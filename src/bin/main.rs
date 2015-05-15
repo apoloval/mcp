@@ -21,6 +21,7 @@ fn main() {
     match cmd {
         args::Command::Version => print_version(),
         args::Command::List(path) => list_files(&path[..]),
+        args::Command::Add(_, _) =>  {},
         args::Command::Extract(path) => extract_all(&path[..]),
     };
 }

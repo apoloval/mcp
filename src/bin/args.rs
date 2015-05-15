@@ -12,6 +12,7 @@ use docopt::Docopt;
 
 static USAGE: &'static str = "
 Usage: mcp -l <cas-file>
+       mcp -a <cas-file> <file>...
        mcp -x <cas-file>
        mcp --help
        mcp --version
@@ -20,6 +21,8 @@ Options:
     -h, --help                  Print this message
     -v, --version               Print the mcp version
     -l, --list                  Lists the contents of the given CAS file
+    -a, --add                   Add new files to a given CAS file. If the CAS
+                                file does not exist, it is created.
     -x, --extract               Extracts the contents from the given CAS file
 ";
 
@@ -29,12 +32,14 @@ Options:
 ///
 /// * `Version`, prints the `mcp` version
 /// * `List(path: String)`, lists the contents of the given CAS file
+/// * `Add(path: String, files: Vec<String>)`, adds files to the given CAS file
 /// * `Extract(path: String, item: String)`, extract the given item from the given CAS file
 ///
 #[derive(Debug, PartialEq)]
 pub enum Command {
     Version,
     List(String),
+    Add(String, Vec<String>),
     Extract(String)
 }
 
@@ -47,8 +52,10 @@ struct Args {
     // flag_help: bool,
     flag_version: bool,
     flag_list: bool,
+    flag_add: bool,
     flag_extract: bool,
     arg_cas_file: String,
+    arg_file: Vec<String>,
 }
 
 impl Args {
@@ -59,6 +66,8 @@ impl Args {
             Command::Version
         } else if self.flag_list {
             Command::List(self.arg_cas_file.clone())
+        } else if self.flag_add {
+            Command::Add(self.arg_cas_file.clone(), self.arg_file.clone())
         } else if self.flag_extract {
             Command::Extract(self.arg_cas_file.clone())
         } else {
@@ -101,6 +110,13 @@ mod test {
         let argv = ["mcp", "--list", "foobar.cas"];
         let cmd = parse_args(argv.iter().map(|a| a.to_string()));
         assert_eq!(Command::List("foobar.cas".to_string()), cmd);
+    }
+
+    #[test]
+    fn should_parse_add() {
+        let argv = ["mcp", "--add", "foobar.cas", "f1.bin"];
+        let cmd = parse_args(argv.iter().map(|a| a.to_string()));
+        assert_eq!(Command::Add("foobar.cas".to_string(), vec![ "f1.bin".to_string()]), cmd);
     }
 
     #[test]
