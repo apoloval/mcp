@@ -20,6 +20,7 @@ fn main() {
     match cmd {
         args::Command::Version => print_version(),
         args::Command::List(path) => list_files(&path[..]),
+        args::Command::Extract(_, _) => {},
     };
 }
 
@@ -49,7 +50,7 @@ fn list_files(path: &str) {
     for file in tape.files() {
         match file {
             tape::File::Bin(name, begin, end, start, data) => {
-                println!("bin    | {} | {:5} bytes | [0x{:x},0x{:x}]:0x{:x}", 
+                println!("bin    | {} | {:5} bytes | [0x{:x},0x{:x}]:0x{:x}",
                     name, data.len(), begin, end, start);
             },
             tape::File::Basic(name, data) => {
