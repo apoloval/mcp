@@ -16,10 +16,10 @@ use std::fs::File;
 
 #[allow(dead_code)]
 fn main() {
-    let action = args::parse_args().action();
-    match action {
-        args::Action::Version => print_version(),
-        args::Action::List(path) => list_files(&path[..]),
+    let cmd = args::parse_args().cmd();
+    match cmd {
+        args::Command::Version => print_version(),
+        args::Command::List(path) => list_files(&path[..]),
     };
 }
 

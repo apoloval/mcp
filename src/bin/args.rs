@@ -27,13 +27,13 @@ pub struct Args {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum Action { Version, List(String) }
+pub enum Command { Version, List(String) }
 
 impl Args {
 
-    pub fn action(&self) -> Action {
-        if self.flag_version { Action::Version }
-        else if self.flag_list { Action::List(self.arg_input_file.clone()) }
+    pub fn cmd(&self) -> Command {
+        if self.flag_version { Command::Version }
+        else if self.flag_list { Command::List(self.arg_input_file.clone()) }
         else { panic!("args are parsed in a inconsistent state") }
     }
 }
@@ -62,12 +62,12 @@ mod test {
     #[test]
     fn should_parse_version() {
         let args = args_for(&vec!["mcp", "--version"]);
-        assert_eq!(Action::Version, args.action());
+        assert_eq!(Command::Version, args.cmd());
     }
 
     #[test]
     fn should_parse_list() {
         let args = args_for(&vec!["mcp", "--list", "foobar.cas"]);
-        assert_eq!(Action::List("foobar.cas".to_string()), args.action());
+        assert_eq!(Command::List("foobar.cas".to_string()), args.cmd());
     }
 }
