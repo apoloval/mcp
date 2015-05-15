@@ -165,7 +165,7 @@ impl Tape {
     /// if there is an error while reading. 
     ///
 	#[allow(dead_code)]
-	pub fn read(input: &mut Read) -> Result<Tape, IoError> {
+	pub fn read<R: Read>(input: &mut R) -> Result<Tape, IoError> {
 		let mut bytes: Vec<u8> = vec![];
 		try!(input.read_to_end(&mut bytes));
 		Ok(Tape::from_bytes(&bytes[..]))
