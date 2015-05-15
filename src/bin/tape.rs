@@ -141,26 +141,26 @@ impl<'a> Iterator for Files<'a> {
                 let end = (content[2] as usize) | (content[3] as usize) << 8;
                 let start = (content[4] as usize) | (content[5] as usize) << 8;
                 let data = &content[6..];
-                self.i = self.i + 2;
+                self.i += 2;
                 return Some(File::Bin(name, begin, end, start, data));
             } else if block.is_basic_header() {
                 let name = block.file_name().unwrap().to_string();
                 let content = &self.tape.blocks[self.i+1].data_without_prefix();
-                self.i = self.i + 1;
+                self.i += 1;
                 return Some(File::Basic(name, &content[..]));
             } else if block.is_ascii_header() {
                 let name = block.file_name().unwrap().to_string();
                 let mut data = Vec::<&[u8]>::new();
-                self.i = self.i + 1;
+                self.i += 1;
                 while {
                     let chunk = &self.tape.blocks[self.i].data_without_prefix();
                     data.push(chunk);
                     self.i < nblocks && !chunk.contains(&0x1a)
-                } { self.i = self.i + 1 }
-                self.i = self.i + 1;
+                } { self.i += 1 }
+                self.i += 1;
                 return Some(File::Ascii(name, data));
             } else {
-                self.i = self.i + 1;
+                self.i += 1;
                 return Some(File::Custom(&block.data[..]));
             }
         }
