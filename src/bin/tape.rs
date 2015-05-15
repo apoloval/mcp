@@ -8,13 +8,14 @@
 
 use std::io::Read;
 use std::io::Error as IoError;
+use std::io::Write;
 use std::str::from_utf8;
 
 /// A block of data contained in a tape.
 ///
 /// A tape file is comprised by a sequence of blocks. Each block starts with the prefix bytes
 /// `1fa6debacc137d74` followed by the block data. The `Block` type stores the block data
-/// without the prefix bytes.
+/// including the prefix bytes.
 ///
 #[derive(Debug)]
 pub struct Block {
@@ -25,11 +26,17 @@ impl Block {
 
     /// Generates a new block from the data bytes (without the prefix bytes).
     pub fn from_data(bytes: &[u8]) -> Block {
-        Block { data: Vec::from(bytes) }
+        let mut data = Vec::with_capacity(bytes.len() + 8);
+        data.write(&[0x1f, 0xa6, 0xde, 0xba, 0xcc, 0x13, 0x7d, 0x74]).unwrap();
+        data.write(bytes).unwrap();
+        Block { data: data }
     }
 
-    /// Returns the block data (without the prefix bytes).
+    /// Returns the block data (including the prefix bytes).
     pub fn data(&self) -> &[u8] { &self.data[..] }
+
+    /// Returns the block data (without the prefix bytes).
+    pub fn data_without_prefix(&self) -> &[u8] { &self.data[8..] }
 
     /// Returns `true` if the block is detected as a binary header.
     ///
@@ -37,8 +44,9 @@ impl Block {
     /// the name of the binary file. This function returns `true` if the block data match
     /// this pattern, `false` otherwise.
     pub fn is_bin_header(&self) -> bool {
-        self.data.len() == 16 &&
-            self.data[..10] == [0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0]
+        let data = self.data_without_prefix();
+        data.len() == 16 &&
+            data[..10] == [0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0]
     }
 
     /// Returns `true` if the block is detected as a Basic header.
@@ -47,8 +55,9 @@ impl Block {
     /// the name of the Basic file. This function returns `true` if the block data match
     /// this pattern, `false` otherwise.
     pub fn is_basic_header(&self) -> bool {
-        self.data.len() == 16 &&
-            self.data[..10] == [0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3]
+        let data = self.data_without_prefix();
+        data.len() == 16 &&
+            data[..10] == [0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3]
     }
 
     /// Returns `true` if the block is detected as an ASCII header.
@@ -57,14 +66,15 @@ impl Block {
     /// the name of the ASCII file. This function returns `true` if the block data match
     /// this pattern, `false` otherwise.
     pub fn is_ascii_header(&self) -> bool {
-        self.data.len() == 16 &&
-            self.data[..10] == [0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea]
+        let data = self.data_without_prefix();
+        data.len() == 16 &&
+            data[..10] == [0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea]
     }
 
     /// Returns the file name in case of a binary, ascii or basic header, `None` otherwise.
     pub fn file_name(&self) -> Option<&str> {
         if self.is_bin_header() || self.is_basic_header() || self.is_ascii_header() {
-            let name = &self.data[10..16];
+            let name = &self.data_without_prefix()[10..16];
             let whites: &[_] = &['\0', ' '];
             from_utf8(name)
                 .ok()
@@ -126,7 +136,7 @@ impl<'a> Iterator for Files<'a> {
             let block = &self.tape.blocks[self.i];
             if block.is_bin_header() {
                 let name = block.file_name().unwrap().to_string();
-                let content = &self.tape.blocks[self.i+1].data;
+                let content = &self.tape.blocks[self.i+1].data_without_prefix();
                 let begin = (content[0] as usize) | (content[1] as usize) << 8;
                 let end = (content[2] as usize) | (content[3] as usize) << 8;
                 let start = (content[4] as usize) | (content[5] as usize) << 8;
@@ -135,7 +145,7 @@ impl<'a> Iterator for Files<'a> {
                 return Some(File::Bin(name, begin, end, start, data));
             } else if block.is_basic_header() {
                 let name = block.file_name().unwrap().to_string();
-                let content = &self.tape.blocks[self.i+1].data;
+                let content = &self.tape.blocks[self.i+1].data_without_prefix();
                 self.i = self.i + 1;
                 return Some(File::Basic(name, &content[..]));
             } else if block.is_ascii_header() {
@@ -143,7 +153,7 @@ impl<'a> Iterator for Files<'a> {
                 let mut data = Vec::<&[u8]>::new();
                 self.i = self.i + 1;
                 while {
-                    let chunk = &self.tape.blocks[self.i].data;
+                    let chunk = &self.tape.blocks[self.i].data_without_prefix();
                     data.push(chunk);
                     self.i < nblocks && !chunk.contains(&0x1a)
                 } { self.i = self.i + 1 }
