@@ -16,7 +16,7 @@ use std::fs::File;
 
 #[allow(dead_code)]
 fn main() {
-    let cmd = args::parse_args().cmd();
+    let cmd = args::parse();
     match cmd {
         args::Command::Version => print_version(),
         args::Command::List(path) => list_files(&path[..]),

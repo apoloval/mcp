@@ -6,6 +6,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+use std::env::args;
+
 use docopt::Docopt;
 
 static USAGE: &'static str = "
@@ -18,19 +20,31 @@ Options:
     -v, --version               Print the mcp version
 ";
 
+/// A command introduced through the command line interface
+///
+/// An enumeration of the commands accepted by `mcp`.
+///
+/// * `Version`, prints the `mcp` version
+/// * `List(path: String)`, lists the contents of the given CAS file
+///
+#[derive(Debug, PartialEq)]
+pub enum Command { Version, List(String) }
+
+/// A raw description of the arguments processed by DCOPT
+///
+/// This is not public. Use `Command` instead. 
+///
 #[derive(RustcDecodable)]
-pub struct Args {
+struct Args {
     // flag_help: bool,
     flag_version: bool,
     flag_list: bool,
     arg_input_file: String,
 }
 
-#[derive(Debug, PartialEq)]
-pub enum Command { Version, List(String) }
-
 impl Args {
 
+    /// Parse the 
     pub fn cmd(&self) -> Command {
         if self.flag_version { Command::Version }
         else if self.flag_list { Command::List(self.arg_input_file.clone()) }
@@ -38,11 +52,21 @@ impl Args {
     }
 }
 
+/// Parse the arguments passed to `mcp`
+///
+/// Same as `parse_args(std::env::args())`. 
+///
 #[allow(dead_code)]
-pub fn parse_args() -> Args {
-    Docopt::new(USAGE)
-        .and_then(|d| d.decode())
-        .unwrap_or_else(|e| e.exit())
+pub fn parse() -> Command { 
+    parse_args(args())
+}
+
+/// Parse the given arguments and return the corresponding `Command` object
+pub fn parse_args<I, S>(args: I) -> Command where I: Iterator<Item=S>, S: Into<String> {
+    let parsed: Args = Docopt::new(USAGE)
+        .and_then(|d| d.argv(args).decode())
+        .unwrap_or_else(|e| e.exit());
+    parsed.cmd()
 }
 
 #[cfg(test)]
@@ -50,24 +74,17 @@ mod test {
 
     use super::*;
 
-    use docopt::Docopt;
-
-    fn args_for(tokens: &Vec<&str>) -> Args {
-        let argv = tokens.iter().map(|t| t.to_string());
-        Docopt::new(super::USAGE)
-            .and_then(|d| d.argv(argv.into_iter()).decode())
-            .unwrap_or_else(|e| e.exit())
-    }
-
     #[test]
     fn should_parse_version() {
-        let args = args_for(&vec!["mcp", "--version"]);
-        assert_eq!(Command::Version, args.cmd());
+        let argv = ["mcp", "--version"];
+        let cmd = parse_args(argv.iter().map(|a| a.to_string()));
+        assert_eq!(Command::Version, cmd);
     }
 
     #[test]
     fn should_parse_list() {
-        let args = args_for(&vec!["mcp", "--list", "foobar.cas"]);
-        assert_eq!(Command::List("foobar.cas".to_string()), args.cmd());
+        let argv = ["mcp", "--list", "foobar.cas"];
+        let cmd = parse_args(argv.iter().map(|a| a.to_string()));
+        assert_eq!(Command::List("foobar.cas".to_string()), cmd);
     }
 }
