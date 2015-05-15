@@ -12,7 +12,7 @@ use docopt::Docopt;
 
 static USAGE: &'static str = "
 Usage: mcp -l <cas-file>
-       mcp -x <cas-file> <item>
+       mcp -x <cas-file>
        mcp --help
        mcp --version
 
@@ -20,7 +20,7 @@ Options:
     -h, --help                  Print this message
     -v, --version               Print the mcp version
     -l, --list                  Lists the contents of the given CAS file
-    -x, --extract               Extracts the given item from the given CAS file
+    -x, --extract               Extracts the contents from the given CAS file
 ";
 
 /// A command introduced through the command line interface
@@ -35,7 +35,7 @@ Options:
 pub enum Command {
     Version,
     List(String),
-    Extract(String, String)
+    Extract(String)
 }
 
 /// A raw description of the arguments processed by DCOPT
@@ -49,7 +49,6 @@ struct Args {
     flag_list: bool,
     flag_extract: bool,
     arg_cas_file: String,
-    arg_item: String,
 }
 
 impl Args {
@@ -61,7 +60,7 @@ impl Args {
         } else if self.flag_list {
             Command::List(self.arg_cas_file.clone())
         } else if self.flag_extract {
-            Command::Extract(self.arg_cas_file.clone(), self.arg_item.clone())
+            Command::Extract(self.arg_cas_file.clone())
         } else {
             panic!("args are parsed in a inconsistent state")
         }
@@ -106,8 +105,8 @@ mod test {
 
     #[test]
     fn should_parse_extract() {
-        let argv = ["mcp", "--extract", "foobar.cas", "ITEM"];
+        let argv = ["mcp", "--extract", "foobar.cas"];
         let cmd = parse_args(argv.iter().map(|a| a.to_string()));
-        assert_eq!(Command::Extract("foobar.cas".to_string(), "ITEM".to_string()), cmd);
+        assert_eq!(Command::Extract("foobar.cas".to_string()), cmd);
     }
 }
