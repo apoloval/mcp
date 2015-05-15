@@ -315,17 +315,17 @@ impl Tape {
 ///
 /// This function converts the string passed as argument into a tape file name.
 /// The tape filename is comprised by six ASCII characters. If the given string
-/// cannot be represented as a file name, `None` is returned.
+/// is too long, it is truncated.
 ///
-pub fn file_name(s: &str) -> Option<[u8; 6]> {
+pub fn file_name(s: &str) -> [u8; 6] {
     use std::cmp::min;
 
-    if s.len() > 6 { return None }
+    let last = if s.len() > 6 { 6 } else { s.len() };
 
-    let mut name: [u8; 6] = [0; 6];
-    let bytes = s.as_bytes();
+    let mut name: [u8; 6] = [0x20; 6];
+    let bytes = &s.as_bytes()[..last];
     for i in 0..min(6, s.len()) { name[i] = bytes[i] }
-    Some(name)
+    name
 }
 
 #[cfg(test)]
@@ -482,7 +482,7 @@ mod test {
     #[test]
     fn should_add_bin_file() {
         let mut tape = Tape::new();
-        let fname = file_name(&"foobar").unwrap();
+        let fname = file_name(&"foobar");
         let data = [ 0x00, 0x80, 0x04, 0x80, 0x00, 0x80, 0x00, 0x01, 0x02, 0x03 ];
         tape.append_bin(&fname, &data);
 
@@ -496,7 +496,7 @@ mod test {
     #[test]
     fn should_add_basic_file() {
         let mut tape = Tape::new();
-        let fname = file_name(&"foobar").unwrap();
+        let fname = file_name(&"foobar");
         let data = [ 0x00, 0x80, 0x04, 0x80, 0x00, 0x80, 0x00, 0x01, 0x02, 0x03 ];
         tape.append_basic(&fname, &data);
 
@@ -513,7 +513,7 @@ mod test {
     #[test]
     fn should_add_ascii_file() {
         let mut tape = Tape::new();
-        let fname = file_name(&"foobar").unwrap();
+        let fname = file_name(&"foobar");
         let data: [u8; 500] = [ 'A' as u8; 500];
         tape.append_ascii(&fname, &data);
 
@@ -533,7 +533,7 @@ mod test {
     #[test]
     fn should_add_ascii_file_aligned_256() {
         let mut tape = Tape::new();
-        let fname = file_name(&"foobar").unwrap();
+        let fname = file_name(&"foobar");
         let data: [u8; 512] = [ 'A' as u8; 512];
         tape.append_ascii(&fname, &data);
 
