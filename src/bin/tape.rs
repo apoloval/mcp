@@ -275,7 +275,7 @@ impl Tape {
             let dblock = Block::from_data(chunk);
             self.blocks.push(dblock);
         }
-        if data.len() & 256 == 0 {
+        if data.len() % 256 == 0 {
             // We need another block for the EOFs
             let eofs: [u8; 256] = [0x1a; 256];
             self.blocks.push(Block::from_data(&eofs));
