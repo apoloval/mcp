@@ -121,7 +121,8 @@ fn extract_file(file: &tape::File, out_path: &str) {
         },
         &tape::File::Ascii(_, ref chunks) => {
             for chunk in chunks {
-                write_file!(out_path, ofile, chunk);
+                let last = chunk.iter().position(|b| *b == 0x1a).unwrap_or(chunk.len());
+                write_file!(out_path, ofile, &chunk[..last]);
             }
         },
         &tape::File::Custom(ref data) => {
