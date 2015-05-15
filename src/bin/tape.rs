@@ -140,7 +140,7 @@ impl<'a> Iterator for Files<'a> {
                 let begin = (content[0] as usize) | (content[1] as usize) << 8;
                 let end = (content[2] as usize) | (content[3] as usize) << 8;
                 let start = (content[4] as usize) | (content[5] as usize) << 8;
-                let data = &content[6..];
+                let data = &content[..];
                 self.i += 2;
                 return Some(File::Bin(name, begin, end, start, data));
             } else if block.is_basic_header() {
@@ -343,7 +343,7 @@ mod test {
                 assert_eq!($b, begin);
                 assert_eq!($e, end);
                 assert_eq!($s, start);
-                assert_eq!($d, &data[..]);
+                assert_eq!($d, &data[6..]);
             },
             _ => panic!("unexpected file"),
         }
