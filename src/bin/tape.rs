@@ -232,6 +232,42 @@ impl Tape {
         self.blocks.push(dblock);
     }
 
+    /// Append an ASCII file to this tape
+    ///
+    /// This method appends an ASCII file to the tape by generating the corresponding
+    /// header & data blocks for the file from the following arguments:
+    ///
+    /// * `name`: the six bytes that conforms the file name. Use function `file_name()` to
+    ///   obtain it from a regular string.
+    /// * `data`: the binary file content
+    ///
+    /// The ASCII files are stored in a very particular manner in CAS format. The whole
+    /// text is divided in chunks of 256 bytes. The last block must end with at least one
+    /// EOF byte. As result, the last block is padded with EOFs until it occupies 256 bytes.
+    /// If the text length is a multiple of 256, the last block is 256 EOF bytes.
+    ///
+    pub fn append_ascii(&mut self, name: &[u8;6], data: &[u8]) {
+        let hblock = Block::from_data(&[
+            0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea,
+            name[0], name[1], name[2], name[3], name[4], name[5],
+        ]);
+        self.blocks.push(hblock);
+        for chunk in data.chunks(256) {
+            let dblock = Block::from_data(chunk);
+            self.blocks.push(dblock);
+        }
+        if data.len() & 256 == 0 {
+            // We need another block for the EOFs
+            let eofs: [u8; 256] = [0x1a; 256];
+            self.blocks.push(Block::from_data(&eofs));
+        } else {
+            let last_block = self.blocks.last_mut().unwrap();
+            while last_block.data_without_prefix().len() < 256 {
+                last_block.data.push(0x1a);
+            }
+        }
+    }
+
     fn parse_blocks(bytes: &[u8]) -> Vec<Block> {
         let mut blocks: Vec<Block> = vec![];
         let mut hindex: Vec<usize> = vec![];
@@ -436,5 +472,46 @@ mod test {
         assert_eq!("F1.bin", files[0].name().unwrap());
         assert_bin!(&files[0],
             "F1", 0x8000, 0x8004, 0x8000, &[0x00, 0x01, 0x02, 0x03]);
+    }
+
+    #[test]
+    fn should_add_ascii_file() {
+        let mut tape = Tape::new();
+        let fname = file_name(&"F2").unwrap();
+        let data: [u8; 500] = [ 'A' as u8; 500];
+        tape.append_ascii(&fname, &data);
+
+        let blocks = tape.blocks();
+        let files = Vec::from_iter(tape.files());
+
+        assert_eq!(3, blocks.len());
+        assert_eq!(256, blocks[1].data_without_prefix().len());
+        assert_eq!(256, blocks[2].data_without_prefix().len());
+        let eofs_found = blocks[2].data_without_prefix().iter().filter(|b| **b == 0x1a).count();
+        assert_eq!(12, eofs_found);
+
+        assert_eq!(1, files.len());
+        assert_eq!("F2.asc", files[0].name().unwrap());
+    }
+
+    #[test]
+    fn should_add_ascii_file_aligned_256() {
+        let mut tape = Tape::new();
+        let fname = file_name(&"F3").unwrap();
+        let data: [u8; 512] = [ 'A' as u8; 512];
+        tape.append_ascii(&fname, &data);
+
+        let blocks = tape.blocks();
+        let files = Vec::from_iter(tape.files());
+
+        assert_eq!(4, blocks.len());
+        assert_eq!(256, blocks[1].data_without_prefix().len());
+        assert_eq!(256, blocks[2].data_without_prefix().len());
+        assert_eq!(256, blocks[3].data_without_prefix().len());
+        let eofs_found = blocks[3].data_without_prefix().iter().filter(|b| **b == 0x1a).count();
+        assert_eq!(256, eofs_found);
+
+        assert_eq!(1, files.len());
+        assert_eq!("F3.asc", files[0].name().unwrap());
     }
 }
