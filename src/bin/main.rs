@@ -12,7 +12,9 @@ extern crate rustc_serialize;
 mod args;
 mod tape;
 
+use std::fs;
 use std::fs::File;
+use std::io::Read;
 use std::io::Write;
 
 #[allow(dead_code)]
@@ -21,7 +23,7 @@ fn main() {
     match cmd {
         args::Command::Version => print_version(),
         args::Command::List(path) => list_files(&path[..]),
-        args::Command::Add(_, _) =>  {},
+        args::Command::Add(path, files) =>  add_files(&path[..], &files[..]),
         args::Command::Extract(path) => extract_all(&path[..]),
     };
 }
@@ -34,19 +36,12 @@ fn print_version() {
     println!("");
 }
 
-macro_rules! open_tape {
+macro_rules! open_file {
     ($path: expr) => ({
-        let mut tape_file = match File::open($path) {
+        match File::open($path) {
             Ok(f) => f,
             Err(e) => {
                 println!("Cannot open file '{}': {}", $path, e);
-                return
-            }
-        };
-        match tape::Tape::read(&mut tape_file) {
-            Ok(f) => f,
-            Err(e) => {
-                println!("Cannot read file '{}': {}", $path, e);
                 return
             }
         }
@@ -65,6 +60,23 @@ macro_rules! create_file {
     })
 }
 
+macro_rules! read_file {
+    ($name: expr, $file: expr, $data: expr) => ({
+        match $file.read_to_end($data) {
+            Ok(_) => {},
+            Err(e) => {
+                println!("Cannot read from file '{}': {}", $name, e);
+            },
+        };
+    });
+    ($name: expr) => ({
+        let file = open_file!($name);
+        let mut data: Vec<u8> = vec![];
+        read_file!($name, &file, &mut data);
+        data
+    });
+}
+
 macro_rules! write_file {
     ($name: expr, $file: expr, $data: expr) => ({
         match $file.write_all($data) {
@@ -73,6 +85,46 @@ macro_rules! write_file {
                 println!("Cannot write to file '{}': {}", $name, e);
             },
         };
+    })
+}
+
+macro_rules! open_tape {
+    ($path: expr) => ({
+        let mut tape_file = open_file!($path);
+        match tape::Tape::read(&mut tape_file) {
+            Ok(f) => f,
+            Err(e) => {
+                println!("Cannot read file '{}': {}", $path, e);
+                return
+            }
+        }
+    })
+}
+
+macro_rules! open_or_create_tape {
+    ($path: expr) => ({
+        match File::open($path) {
+            Ok(mut f) => {
+                match tape::Tape::read(&mut f) {
+                    Ok(f) => (f, true),
+                    Err(e) => {
+                        println!("Cannot read file '{}': {}", $path, e);
+                        return
+                    }
+                }
+            },
+            Err(_) => (tape::Tape::new(), false),
+        }
+    })
+}
+
+macro_rules! file_name {
+    ($file: expr) => ({
+        let fname = &$file[..$file.len() - 4];
+        if fname.len() > 6 {
+            println!("Warning: filename {} is too long, truncating", $file);
+        }
+        tape::file_name(fname)
     })
 }
 
@@ -129,5 +181,58 @@ fn extract_file(file: &tape::File, out_path: &str) {
         &tape::File::Custom(ref data) => {
             write_file!(out_path, ofile, data);
         },
+    }
+}
+
+fn add_files(path: &str, files: &[String]) {
+    let (mut tape, tape_exist) = open_or_create_tape!(path);
+    for fname in files {
+        print!("Adding {}... ", fname);
+        if fname.ends_with(".bin") {
+            add_bin_file(&mut tape, &fname[..]);
+        } else if fname.ends_with(".asc") {
+            add_ascii_file(&mut tape, &fname[..]);
+        } else if fname.ends_with(".bas") {
+            add_basic_file(&mut tape, &fname[..]);
+        } else {
+            add_custom_file(&mut tape, &fname[..]);
+        }
+        println!("Done");
+    }
+    let otmp = format!("{}.tmp", path);
+    save_tape(&tape, &otmp[..]);
+    if tape_exist {
+        fs::remove_file(path).unwrap();
+    }
+    fs::rename(otmp, path).unwrap();
+}
+
+fn add_bin_file(tape: &mut tape::Tape, file: &str) {
+    let data = &read_file!(file)[..];
+    let fname = file_name!(file);
+    tape.append_bin(&fname, data);
+}
+
+fn add_basic_file(tape: &mut tape::Tape, file: &str) {
+    let data = &read_file!(file)[..];
+    let fname = file_name!(file);
+    tape.append_basic(&fname, data);
+}
+
+fn add_ascii_file(tape: &mut tape::Tape, file: &str) {
+    let data = &read_file!(file)[..];
+    let fname = file_name!(file);
+    tape.append_ascii(&fname, data);
+}
+
+fn add_custom_file(tape: &mut tape::Tape, file: &str) {
+    let data = &read_file!(file)[..];
+    tape.append_custom(data);
+}
+
+fn save_tape(tape: &tape::Tape, file: &str) {
+    let mut ofile = create_file!(&file);
+    for block in tape.blocks() {
+        write_file!(&file, &mut ofile, block.data());
     }
 }

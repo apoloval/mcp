@@ -287,6 +287,11 @@ impl Tape {
         }
     }
 
+    /// Append a custom file to the tape.
+    pub fn append_custom(&mut self, data: &[u8]) {
+        self.blocks.push(Block::from_data(data))
+    }
+
     fn parse_blocks(bytes: &[u8]) -> Vec<Block> {
         let mut blocks: Vec<Block> = vec![];
         let mut hindex: Vec<usize> = vec![];
