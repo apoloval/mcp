@@ -146,7 +146,7 @@ impl<'a> Iterator for Files<'a> {
             } else if block.is_basic_header() {
                 let name = block.file_name().unwrap().to_string();
                 let content = &self.tape.blocks[self.i+1].data_without_prefix();
-                self.i += 1;
+                self.i += 2;
                 return Some(File::Basic(name, &content[..]));
             } else if block.is_ascii_header() {
                 let name = block.file_name().unwrap().to_string();
@@ -232,6 +232,25 @@ impl Tape {
         self.blocks.push(dblock);
     }
 
+    /// Append a binary file to this tape
+    ///
+    /// This method appends a binary file to the tape by generating the corresponding
+    /// header & data blocks for the file from the following arguments:
+    ///
+    /// * `name`: the six bytes that conforms the file name. Use function `file_name()` to
+    ///   obtain it from a regular string.
+    /// * `data`: the binary file content
+    ///
+    pub fn append_basic(&mut self, name: &[u8;6], data: &[u8]) {
+        let hblock = Block::from_data(&[
+            0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3,
+            name[0], name[1], name[2], name[3], name[4], name[5],
+        ]);
+        let dblock = Block::from_data(data);
+        self.blocks.push(hblock);
+        self.blocks.push(dblock);
+    }
+
     /// Append an ASCII file to this tape
     ///
     /// This method appends an ASCII file to the tape by generating the corresponding
@@ -305,7 +324,7 @@ pub fn file_name(s: &str) -> Option<[u8; 6]> {
 
     let mut name: [u8; 6] = [0; 6];
     let bytes = s.as_bytes();
-    for i in 0..min(5, s.len()) { name[i] = bytes[i] }
+    for i in 0..min(6, s.len()) { name[i] = bytes[i] }
     Some(name)
 }
 
@@ -463,21 +482,38 @@ mod test {
     #[test]
     fn should_add_bin_file() {
         let mut tape = Tape::new();
-        let fname = file_name(&"F1").unwrap();
+        let fname = file_name(&"foobar").unwrap();
         let data = [ 0x00, 0x80, 0x04, 0x80, 0x00, 0x80, 0x00, 0x01, 0x02, 0x03 ];
         tape.append_bin(&fname, &data);
 
         let files = Vec::from_iter(tape.files());
         assert_eq!(1, files.len());
-        assert_eq!("F1.bin", files[0].name().unwrap());
+        assert_eq!("foobar.bin", files[0].name().unwrap());
         assert_bin!(&files[0],
-            "F1", 0x8000, 0x8004, 0x8000, &[0x00, 0x01, 0x02, 0x03]);
+            "foobar", 0x8000, 0x8004, 0x8000, &[0x00, 0x01, 0x02, 0x03]);
+    }
+
+    #[test]
+    fn should_add_basic_file() {
+        let mut tape = Tape::new();
+        let fname = file_name(&"foobar").unwrap();
+        let data = [ 0x00, 0x80, 0x04, 0x80, 0x00, 0x80, 0x00, 0x01, 0x02, 0x03 ];
+        tape.append_basic(&fname, &data);
+
+        let blocks = tape.blocks();
+        let files = Vec::from_iter(tape.files());
+
+        assert_eq!(2, blocks.len());
+        assert_eq!(data, blocks[1].data_without_prefix());
+
+        assert_eq!(1, files.len());
+        assert_eq!("foobar.bas", files[0].name().unwrap());
     }
 
     #[test]
     fn should_add_ascii_file() {
         let mut tape = Tape::new();
-        let fname = file_name(&"F2").unwrap();
+        let fname = file_name(&"foobar").unwrap();
         let data: [u8; 500] = [ 'A' as u8; 500];
         tape.append_ascii(&fname, &data);
 
@@ -491,13 +527,13 @@ mod test {
         assert_eq!(12, eofs_found);
 
         assert_eq!(1, files.len());
-        assert_eq!("F2.asc", files[0].name().unwrap());
+        assert_eq!("foobar.asc", files[0].name().unwrap());
     }
 
     #[test]
     fn should_add_ascii_file_aligned_256() {
         let mut tape = Tape::new();
-        let fname = file_name(&"F3").unwrap();
+        let fname = file_name(&"foobar").unwrap();
         let data: [u8; 512] = [ 'A' as u8; 512];
         tape.append_ascii(&fname, &data);
 
@@ -512,6 +548,6 @@ mod test {
         assert_eq!(256, eofs_found);
 
         assert_eq!(1, files.len());
-        assert_eq!("F3.asc", files[0].name().unwrap());
+        assert_eq!("foobar.asc", files[0].name().unwrap());
     }
 }
