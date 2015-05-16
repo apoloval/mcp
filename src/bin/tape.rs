@@ -161,7 +161,7 @@ impl<'a> Iterator for Files<'a> {
                 return Some(File::Ascii(name, data));
             } else {
                 self.i += 1;
-                return Some(File::Custom(&block.data[..]));
+                return Some(File::Custom(&block.data_without_prefix()[..]));
             }
         }
         None
