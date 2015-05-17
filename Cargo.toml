@@ -8,6 +8,9 @@ authors = ["Alvaro Polo <apoloval@gmail.com>"]
 docopt = "*"
 rustc-serialize = "*"
 
+[dev-dependencies]
+quickcheck = "*"
+
 [[bin]]
 name = "mcp"
 path = "src/bin/main.rs"

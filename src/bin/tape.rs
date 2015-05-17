@@ -336,7 +336,10 @@ pub fn file_name(s: &str) -> [u8; 6] {
 #[cfg(test)]
 mod test {
 
+    use std::io::Write;
     use std::iter::FromIterator;
+
+    use quickcheck::quickcheck;
 
     use super::*;
 
@@ -365,6 +368,31 @@ mod test {
             _ => panic!("unexpected file"),
         }
         }
+    }
+
+    macro_rules! require_prop {
+        ($p: expr) => (if !($p) { return false; });
+        ($c: expr, $p: expr) => (if !($p) {
+            println!("Property not met: {}", $c);
+            return false;
+        })
+    }
+
+    fn block_read_from_bytes_prop(bytes: Vec<u8>) -> bool {
+        let block = Block::from_data(&bytes[..]);
+        let data = block.data();
+        require_prop!(
+            "prefix bytes are present",
+            &data[0..8] == [0x1f, 0xa6, 0xde, 0xba, 0xcc, 0x13, 0x7d, 0x74]);
+        require_prop!(
+            "data is present",
+            &data[8..] == &bytes[..] && block.data_without_prefix() == &bytes[..]);
+        true
+    }
+
+    #[test]
+    fn should_block_read_from_bytes() {
+        quickcheck(block_read_from_bytes_prop as fn(Vec<u8>) -> bool);
     }
 
     #[test]
@@ -427,29 +455,29 @@ mod test {
         assert_eq!(None, tape.files().next());
     }
 
+    fn should_load_tape_with_some_blocks_prop(blocks: Vec<Vec<u8>>) -> bool{
+        let mut bytes: Vec<u8> = vec![];
+        for block in &blocks {
+            bytes.write(&[0x1f, 0xa6, 0xde, 0xba, 0xcc, 0x13, 0x7d, 0x74]).unwrap();
+            bytes.write(&block[..]).unwrap();
+        }
+        let tape = Tape::from_bytes(&bytes);
+
+        require_prop!(
+            "the number of blocks is right",
+            blocks.len() == tape.blocks().len());
+
+        for (src, dst) in blocks.iter().zip(tape.blocks()) {
+            require_prop!(
+                "the block data was successfully loaded",
+                &src[..] == dst.data_without_prefix());
+        }
+        true
+    }
+
     #[test]
     fn should_load_tape_with_some_blocks() {
-        let bytes: Vec<u8> = vec![
-            0x1f, 0xa6, 0xde, 0xba, 0xcc, 0x13, 0x7d, 0x74,
-            0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0,
-            0xd0, 0xd0, 0x46, 0x49, 0x4c, 0x45, 0x31, 0x00,
-            0x1f, 0xa6, 0xde, 0xba, 0xcc, 0x13, 0x7d, 0x74,
-            0x00, 0x80, 0x08, 0x80, 0x00, 0x00, 0x01, 0x02,
-            0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x1f,
-            0xa6, 0xde, 0xba, 0xcc, 0x13, 0x7d, 0x74, 0xea,
-            0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea,
-            0xea, 0x46, 0x49, 0x4c, 0x45, 0x32, 0x00, 0x1f,
-            0xa6, 0xde, 0xba, 0xcc, 0x13, 0x7d, 0x74, 0x41,
-            0x42, 0x43, 0x44, 0x1a,
-        ];
-        let tape = Tape::from_bytes(&bytes);
-        assert_eq!(4, tape.blocks().len());
-
-        assert!(tape.blocks()[0].is_bin_header());
-        assert_eq!("FILE1", tape.blocks()[0].file_name().unwrap());
-
-        assert!(tape.blocks()[2].is_ascii_header());
-        assert_eq!("FILE2", tape.blocks()[2].file_name().unwrap());
+        quickcheck(should_load_tape_with_some_blocks_prop as fn(Vec<Vec<u8>>) -> bool);
     }
 
     #[test]
@@ -484,75 +512,92 @@ mod test {
                  &[0x45, 0x46, 0x47, 0x1a ]]);
     }
 
-    #[test]
-    fn should_add_bin_file() {
+    fn should_add_bin_file_prop(bytes: Vec<u8>) -> bool {
+        if bytes.len() < 6 { return true; }
         let mut tape = Tape::new();
         let fname = file_name(&"foobar");
-        let data = [ 0x00, 0x80, 0x04, 0x80, 0x00, 0x80, 0x00, 0x01, 0x02, 0x03 ];
-        tape.append_bin(&fname, &data);
+        tape.append_bin(&fname, &bytes[..]);
 
         let files = Vec::from_iter(tape.files());
-        assert_eq!(1, files.len());
-        assert_eq!("foobar.bin", files[0].name().unwrap());
-        assert_bin!(&files[0],
-            "foobar", 0x8000, 0x8004, 0x8000, &[0x00, 0x01, 0x02, 0x03]);
+        require_prop!(
+            "only one file in tape",
+            files.len() == 1);
+        require_prop!(
+            "filename is as expected",
+            files[0].name().unwrap() == "foobar.bin");
+        require_prop!(
+            "block content is as expected",
+            tape.blocks()[1].data_without_prefix() == &bytes[..]);
+        true
+    }
+
+    #[test]
+    fn should_add_bin_file() {
+        quickcheck(should_add_bin_file_prop as fn(Vec<u8>) -> bool);
+    }
+
+    fn should_add_basic_file_prop(bytes: Vec<u8>) -> bool {
+        let mut tape = Tape::new();
+        let fname = file_name(&"foobar");
+        tape.append_basic(&fname, &bytes[..]);
+
+        let files = Vec::from_iter(tape.files());
+
+        require_prop!(
+            "only one file in tape",
+            files.len() == 1);
+        require_prop!(
+            "filename is as expected",
+            files[0].name().unwrap() == "foobar.bas");
+        require_prop!(
+            "block content is as expected",
+            tape.blocks()[1].data_without_prefix() == &bytes[..]);
+        true
     }
 
     #[test]
     fn should_add_basic_file() {
+        quickcheck(should_add_basic_file_prop as fn(Vec<u8>) -> bool);
+    }
+
+    fn should_add_ascii_file_prop(text: String) -> bool {
         let mut tape = Tape::new();
         let fname = file_name(&"foobar");
-        let data = [ 0x00, 0x80, 0x04, 0x80, 0x00, 0x80, 0x00, 0x01, 0x02, 0x03 ];
-        tape.append_basic(&fname, &data);
+        tape.append_ascii(&fname, text.as_bytes());
 
-        let blocks = tape.blocks();
         let files = Vec::from_iter(tape.files());
 
-        assert_eq!(2, blocks.len());
-        assert_eq!(data, blocks[1].data_without_prefix());
+        require_prop!(
+            "only one file in tape",
+            files.len() == 1);
+        require_prop!(
+            "filename is as expected",
+            files[0].name().unwrap() == "foobar.asc");
 
-        assert_eq!(1, files.len());
-        assert_eq!("foobar.bas", files[0].name().unwrap());
+        let chunks = Vec::from_iter(text.as_bytes().chunks(256));
+        for i in 0..chunks.len() {
+            let block_data = tape.blocks[i+1].data_without_prefix();
+            let is_last = i == chunks.len() - 1;
+            if is_last {
+                let last_text = chunks[i].len();
+                require_prop!(
+                    "last block contains the expected text bytes",
+                    chunks[i] == &block_data[..last_text]);
+                require_prop!(
+                    "last block is right padded with EOFs to 256-bytes",
+                    &block_data[last_text..].iter().all(|b| b == &0x1a));
+            } else {
+                require_prop!(
+                    "non-last block contains right text bytes",
+                    chunks[i] == block_data);
+            }
+        }
+
+        true
     }
 
     #[test]
     fn should_add_ascii_file() {
-        let mut tape = Tape::new();
-        let fname = file_name(&"foobar");
-        let data: [u8; 500] = [ 'A' as u8; 500];
-        tape.append_ascii(&fname, &data);
-
-        let blocks = tape.blocks();
-        let files = Vec::from_iter(tape.files());
-
-        assert_eq!(3, blocks.len());
-        assert_eq!(256, blocks[1].data_without_prefix().len());
-        assert_eq!(256, blocks[2].data_without_prefix().len());
-        let eofs_found = blocks[2].data_without_prefix().iter().filter(|b| **b == 0x1a).count();
-        assert_eq!(12, eofs_found);
-
-        assert_eq!(1, files.len());
-        assert_eq!("foobar.asc", files[0].name().unwrap());
-    }
-
-    #[test]
-    fn should_add_ascii_file_aligned_256() {
-        let mut tape = Tape::new();
-        let fname = file_name(&"foobar");
-        let data: [u8; 512] = [ 'A' as u8; 512];
-        tape.append_ascii(&fname, &data);
-
-        let blocks = tape.blocks();
-        let files = Vec::from_iter(tape.files());
-
-        assert_eq!(4, blocks.len());
-        assert_eq!(256, blocks[1].data_without_prefix().len());
-        assert_eq!(256, blocks[2].data_without_prefix().len());
-        assert_eq!(256, blocks[3].data_without_prefix().len());
-        let eofs_found = blocks[3].data_without_prefix().iter().filter(|b| **b == 0x1a).count();
-        assert_eq!(256, eofs_found);
-
-        assert_eq!(1, files.len());
-        assert_eq!("foobar.asc", files[0].name().unwrap());
+        quickcheck(should_add_ascii_file_prop as fn(String) -> bool);
     }
 }
