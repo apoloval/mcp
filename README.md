@@ -233,3 +233,12 @@ myprogram.wav: RIFF (little-endian) data, WAVE audio, Microsoft PCM, 8 bit, mono
 The resulting file is ready to be played and make your homebrew programs
 loadable in your MSX computer.
 
+## Acknowledgements
+
+MCP was coded by porting several code fragments from
+[CAS Tools](http://home.kabelfoon.nl/~vincentd/). Many thanks to Vincent van
+Dam for his software.
+
+MCP export feature has been tested with several games in
+[OpenMSX](http://openmsx.sourceforge.net) emulator. Many thanks to its authors
+and congratulations for making such a great software.
