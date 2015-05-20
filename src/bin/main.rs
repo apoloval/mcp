@@ -26,6 +26,7 @@ fn main() {
         args::Command::List(path) => list_files(&path[..]),
         args::Command::Add(path, files) =>  add_files(&path[..], &files[..]),
         args::Command::Extract(path) => extract_all(&path[..]),
+        args::Command::Export(_, _) => {},
     };
 }
 

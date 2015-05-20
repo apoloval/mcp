@@ -14,6 +14,7 @@ static USAGE: &'static str = "
 Usage: mcp -l <cas-file>
        mcp -a <cas-file> <file>...
        mcp -x <cas-file>
+       mcp -e <cas-file> <wav-file>
        mcp --help
        mcp --version
 
@@ -24,6 +25,7 @@ Options:
     -a, --add                   Add new files to a given CAS file. If the CAS
                                 file does not exist, it is created.
     -x, --extract               Extracts the contents from the given CAS file
+    -e, --export                Exports the CAS file into a WAV file
 ";
 
 /// A command introduced through the command line interface
@@ -34,13 +36,15 @@ Options:
 /// * `List(path: String)`, lists the contents of the given CAS file
 /// * `Add(path: String, files: Vec<String>)`, adds files to the given CAS file
 /// * `Extract(path: String, item: String)`, extract the given item from the given CAS file
+/// * `Export(path: String, output: String)`, export the given CAS file into given output WAV file
 ///
 #[derive(Debug, PartialEq)]
 pub enum Command {
     Version,
     List(String),
     Add(String, Vec<String>),
-    Extract(String)
+    Extract(String),
+    Export(String, String),
 }
 
 /// A raw description of the arguments processed by DCOPT
@@ -54,8 +58,10 @@ struct Args {
     flag_list: bool,
     flag_add: bool,
     flag_extract: bool,
+    flag_export: bool,
     arg_cas_file: String,
     arg_file: Vec<String>,
+    arg_wav_file: String,
 }
 
 impl Args {
@@ -70,6 +76,8 @@ impl Args {
             Command::Add(self.arg_cas_file.clone(), self.arg_file.clone())
         } else if self.flag_extract {
             Command::Extract(self.arg_cas_file.clone())
+        } else if self.flag_export {
+            Command::Export(self.arg_cas_file.clone(), self.arg_wav_file.clone())
         } else {
             panic!("args are parsed in a inconsistent state")
         }
@@ -124,5 +132,12 @@ mod test {
         let argv = ["mcp", "--extract", "foobar.cas"];
         let cmd = parse_args(argv.iter().map(|a| a.to_string()));
         assert_eq!(Command::Extract("foobar.cas".to_string()), cmd);
+    }
+
+    #[test]
+    fn should_parse_export() {
+        let argv = ["mcp", "--export", "foobar.cas", "foobar.wav"];
+        let cmd = parse_args(argv.iter().map(|a| a.to_string()));
+        assert_eq!(Command::Export("foobar.cas".to_string(), "foobar.wav".to_string()), cmd);
     }
 }
