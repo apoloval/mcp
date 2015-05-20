@@ -6,6 +6,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+extern crate byteorder;
 extern crate docopt;
 extern crate rustc_serialize;
 
@@ -14,6 +15,7 @@ extern crate quickcheck;
 
 mod args;
 mod tape;
+mod wav;
 
 use std::fs;
 use std::fs::File;

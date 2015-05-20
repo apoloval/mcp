@@ -5,6 +5,7 @@ version = "0.1.0"
 authors = ["Alvaro Polo <apoloval@gmail.com>"]
 
 [dependencies]
+byteorder = "*"
 docopt = "*"
 rustc-serialize = "*"
 
