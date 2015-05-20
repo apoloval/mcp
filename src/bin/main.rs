@@ -30,7 +30,7 @@ fn main() {
         args::Command::List(path) => list_files(&path[..]),
         args::Command::Add(path, files) =>  add_files(&path[..], &files[..]),
         args::Command::Extract(path) => extract_all(&path[..]),
-        args::Command::Export(_, _) => {},
+        args::Command::Export(path, output) => export(&*path, &*output),
     };
 }
 
@@ -241,4 +241,25 @@ fn save_tape(tape: &tape::Tape, file: &str) {
     for block in tape.blocks() {
         write_file!(&file, &mut ofile, block.data());
     }
+}
+
+fn export(cas_path: &str, wav_path: &str) {
+    let tape = open_tape!(cas_path);
+    let mut exporter = wav::Exporter::new();
+    let mut wav_file = create_file!(wav_path);
+
+    for (block, i) in tape.blocks().iter().zip(0..tape.blocks().len()) {
+        print!("Encoding block {}... ", i);
+        let mut nbytes = 0;
+        if block.is_file_header() {
+            nbytes += exporter.write_long_silence().ok().unwrap();
+            nbytes += exporter.write_long_header().ok().unwrap();
+        } else {
+            nbytes += exporter.write_short_silence().ok().unwrap();
+            nbytes += exporter.write_short_header().ok().unwrap();
+        }
+        nbytes += exporter.write_data(block.data_without_prefix()).ok().unwrap();
+        println!("{} KiB", nbytes / 1024);
+    }
+    exporter.export(&mut wav_file).ok();
 }
