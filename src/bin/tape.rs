@@ -71,6 +71,11 @@ impl Block {
             data[..10] == [0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea]
     }
 
+    /// Returns `true` if the block is detected as a file header (either bin, basic or ascii).
+    pub fn is_file_header(&self) -> bool {
+        self.is_bin_header() || self.is_basic_header() || self.is_ascii_header()
+    }
+
     /// Returns the file name in case of a binary, ascii or basic header, `None` otherwise.
     pub fn file_name(&self) -> Option<&str> {
         if self.is_bin_header() || self.is_basic_header() || self.is_ascii_header() {
