@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/apoloval/mcp.svg?branch=master)](https://travis-ci.org/apoloval/mcp)
+
 # MSX CAS Packager
 
 **M**SX **C**AS **P**ackager is a command line interface (CLI) tool to manage
