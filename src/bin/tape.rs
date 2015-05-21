@@ -11,6 +11,8 @@ use std::io::Error as IoError;
 use std::io::Write;
 use std::str::from_utf8;
 
+use byteorder::{ByteOrder, LittleEndian};
+
 /// A block of data contained in a tape.
 ///
 /// A tape file is comprised by a sequence of blocks. Each block starts with the prefix bytes
@@ -142,9 +144,9 @@ impl<'a> Iterator for Files<'a> {
             if block.is_bin_header() {
                 let name = block.file_name().unwrap().to_string();
                 let content = &self.tape.blocks[self.i+1].data_without_prefix();
-                let begin = (content[0] as usize) | (content[1] as usize) << 8;
-                let end = (content[2] as usize) | (content[3] as usize) << 8;
-                let start = (content[4] as usize) | (content[5] as usize) << 8;
+                let begin = LittleEndian::read_u16(&content[0..2]) as usize;
+                let end = LittleEndian::read_u16(&content[2..4]) as usize;
+                let start = LittleEndian::read_u16(&content[4..6]) as usize;
                 let data = &content[..];
                 self.i += 2;
                 return Some(File::Bin(name, begin, end, start, data));
