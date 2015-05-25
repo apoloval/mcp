@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style type="text/css"> body { font-family: Helvetica; } </style>
+</head>
+<body>
+
+<h1>Welcome to MSX CAS Packager $VERSION installer</h1>
+
+<p>This program will install MSX CAS Packager $VERSION in your computer.</p>
+
+<p><strong>M</strong>SX <strong>C</strong>AS <strong>P</strong>ackager is
+a command line interface (CLI) tool to manage MSX CAS files. A CAS file is
+a very common file format used to represent the contents of a MSX cassete
+tape.</p>
+
+<p>Using MCP you can perform the following actions on a CAS file.</p>
+
+<ul>
+<li>List CAS files. You can obtain a list of files contained in the CAS file.</li>
+<li>Add files to a new or existing CAS file. This is one the most powerful
+features of MCP. You can create your own CAS files with your files. Basic
+programs, assembler programs, data, etc, can be stored into a CAS file.</li>
+<li>Extract contents from existing CAS file. Did you ever want to make some
+reverse engineering of your favorite MSX games? Now that's possible thanks
+to MCP! You can extract the files of a CAS file, read their Basic programs,
+study its binary code, etc.</li>
+<li>Export CAS files to WAV format. This feature, combined with the ability
+to create new CAS files with your own programs, makes possible to convert
+the CAS file into WAV that can be played to your MSX hardware cassette
+interface. Code your own games and play them in your real MSX!</li>
+</ul>
+
+</body>

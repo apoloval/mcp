@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<installer-gui-script minSpecVersion="1">
+    <title>MSX CAS Packager</title>
+    <organization>org.github.apoloval</organization>
+    <domains enable_localSystem="true"/>
+    <options customize="never" require-scripts="true" rootVolumeOnly="true" />
+    <!-- Define documents displayed at various steps -->
+    <welcome    file="welcome.html"    mime-type="text/html" />
+    <license    file="license.html"    mime-type="text/html" />
+    <!-- List all component packages -->
+    <pkg-ref id="org.github.apoloval.mcp"
+             version="0.1.0"
+             auth="root">mcp.pkg</pkg-ref>
+    <!-- List them again here. They can now be organized
+         as a hierarchy if you want. -->
+    <choices-outline>
+        <line choice="org.github.apoloval.mcp"/>
+    </choices-outline>
+    <!-- Define each choice above -->
+    <choice
+        id="org.github.apoloval.mcp"
+        visible="false"
+        title="MCP CLI"
+        description="The MCP CLI program"
+        start_selected="true">
+      <pkg-ref id="org.github.apoloval.mcp"/>
+    </choice>
+</installer-gui-script>
