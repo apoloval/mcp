@@ -173,6 +173,8 @@ fn extract_file(file: &tape::File, out_path: &str) {
     let mut ofile = create_file!(out_path);
     match file {
         &tape::File::Bin(_, _, _, _, data) => {
+            // First, write the BIN file ID byte not present in cassete
+            write_file!(out_path, ofile, &[0xfe]);
             write_file!(out_path, ofile, data);
         },
         &tape::File::Basic(_, data) => {
@@ -215,8 +217,10 @@ fn add_files(path: &str, files: &[String]) {
 
 fn add_bin_file(tape: &mut tape::Tape, file: &str) {
     let data = &read_file!(file)[..];
+    // Skip bin file ID byte if present
+    let bytes = if data[0] == 0xfe { &data[1..] } else { data };
     let fname = file_name!(file);
-    tape.append_bin(&fname, data);
+    tape.append_bin(&fname, bytes);
 }
 
 fn add_basic_file(tape: &mut tape::Tape, file: &str) {

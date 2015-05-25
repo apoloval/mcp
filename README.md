@@ -140,7 +140,9 @@ bin    | myprog |   100 bytes | [0x8000,0x803e]:0x8000
 MCP is able to determine the file type by the file extension with the following
 criteria:
 
-* `file.bin` is interpreted and stored as binary file
+* `file.bin` is interpreted and stored as binary file. The binary file ID byte
+(`0xfe`) is automatically removed when dumped into the CAS file. Please remember
+that binary files in cassette do not include it.
 * `file.asc` is interpreted and stored as ASCII file. Its contents are automatically
 padded by MCP with EOF (end-of-file) bytes to have 256-byte aligned blocks required
 by MSX systems to load the file successfully.
@@ -205,6 +207,9 @@ indicating the relative position of the custom file in the tape.
 
 In case of ASCII files, the trailing EOF bytes are not copied to the target
 file so you can read the Basic source code as text.
+
+In case of binary files, the leading ID byte (`0xfe`) is automatically
+prepended to the target file.
 
 ```shell
 $ file ark.asc
