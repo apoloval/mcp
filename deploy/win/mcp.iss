@@ -18,6 +18,9 @@ OutputDir=.
 
 [files]
 Source: "..\..\target\release\mcp.exe"; DestDir: "{app}"
+#ifdef CopyLibGcc
+Source: "C:\Program Files\Rust stable 1.0\bin\libgcc_s_dw2-1.dll"; DestDir: "{app}";
+#endif
 
 [icons]
 Name: "{group}\MCP Shell"; Filename: "cmd.exe"; Parameters: "/K path {app};%PATH%"; WorkingDir: "{userdocs}"
