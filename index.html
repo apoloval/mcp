@@ -1,0 +1,316 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>MSX CAS Packager by apoloval</title>
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/github-dark.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="javascripts/respond.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <!--[if lt IE 8]>
+    <link rel="stylesheet" href="stylesheets/ie.css">
+    <![endif]-->
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+  </head>
+  <body>
+      <div id="header">
+        <nav>
+          <li class="fork"><a href="https://github.com/apoloval/mcp">View On GitHub</a></li>
+          <li class="downloads"><a href="https://github.com/apoloval/mcp/zipball/master">ZIP</a></li>
+          <li class="downloads"><a href="https://github.com/apoloval/mcp/tarball/master">TAR</a></li>
+          <li class="title">DOWNLOADS</li>
+        </nav>
+      </div><!-- end header -->
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>MSX CAS Packager</h1>
+          <p>A command line interface (CLI) tool to pack/unpack MSX CAS files</p>
+          <hr>
+          <span class="credits left">Project maintained by <a href="https://github.com/apoloval">apoloval</a></span>
+          <span class="credits right">Hosted on GitHub Pages &mdash; Theme by <a href="https://twitter.com/michigangraham">mattgraham</a></span>
+        </div>
+
+        <p><a href="https://travis-ci.org/apoloval/mcp"><img src="https://travis-ci.org/apoloval/mcp.svg?branch=master" alt="Build Status"></a></p>
+
+<h1>
+<a id="msx-cas-packager" class="anchor" href="#msx-cas-packager" aria-hidden="true"><span class="octicon octicon-link"></span></a>MSX CAS Packager</h1>
+
+<p><strong>M</strong>SX <strong>C</strong>AS <strong>P</strong>ackager is a command line interface (CLI) tool to manage
+MSX CAS files. A CAS file is a very common file format used to represent
+the contents of a MSX cassete tape.</p>
+
+<p>Using MCP you can perform the following actions on a CAS file.</p>
+
+<ul>
+<li>List CAS files. You can obtain a list of files contained in the CAS file.</li>
+<li>Add files to a new or existing CAS file. This is one the most powerful
+features of MCP. You can create your own CAS files with your files. Basic
+programs, assembler programs, data, etc, can be stored into a CAS file.</li>
+<li>Extract contents from existing CAS file. Did you ever want to make some
+reverse engineering of your favorite MSX games? Now that's possible thanks
+to MCP! You can extract the files of a CAS file, read their Basic programs,
+study its binary code, etc.</li>
+<li>Export CAS files to WAV format. This feature, combined with the ability
+to create new CAS files with your own programs, makes possible to convert
+the CAS file into WAV that can be played to your MSX hardware cassette
+interface. Code your own games and play them in your real MSX!</li>
+</ul>
+
+<p>By the way, MCP is free and open source. You only have to obey the terms of
+the <a href="https://www.mozilla.org/MPL/">Mozilla Public License</a>, which is basically:</p>
+
+<ul>
+<li>Use the software for anything you want, as long as you want, wherever you
+want.</li>
+<li>If you want to modify the software, read the terms carefully.</li>
+</ul>
+
+<h2>
+<a id="download-binaries" class="anchor" href="#download-binaries" aria-hidden="true"><span class="octicon octicon-link"></span></a>Download binaries</h2>
+
+<p>You will find installation binaries for the latest version of MCP in the
+following links.</p>
+
+<ul>
+<li><a href="https://bintray.com/artifact/download/apoloval/msx/mcp/v0.1.0/mcp-0.1.0.pkg">MCP for Mac OS X 64-bits</a></li>
+<li><a href="https://bintray.com/artifact/download/apoloval/msx/mcp/v0.1.0/mcp-0.1.0_x86.exe">MCP for Windows 32-bits</a></li>
+<li><a href="https://bintray.com/artifact/download/apoloval/msx/mcp/v0.1.0/mcp-0.1.0_x64.exe">MCP for Windows 64-bits</a></li>
+</ul>
+
+<p>If your operating system is not listed above, please try to build from sources
+as described below.</p>
+
+<h2>
+<a id="build-from-sources" class="anchor" href="#build-from-sources" aria-hidden="true"><span class="octicon octicon-link"></span></a>Build from sources</h2>
+
+<p>MCP is written in <a href="http://www.rust-lang.org">Rust programming language</a>.
+You will need Rust to be installed in the system to build MCP. The simplest
+method to do that is to go to the project website and download the latest
+distribution installer for your platform.</p>
+
+<p>After installing Rust, just go to the top directory of your MCP's working
+copy and type:</p>
+
+<div class="highlight highlight-shell"><pre>$ cargo build --release</pre></div>
+
+<p>MCP will be build in the <code>target/release</code> directory.</p>
+
+<h2>
+<a id="how-it-works" class="anchor" href="#how-it-works" aria-hidden="true"><span class="octicon octicon-link"></span></a>How it works</h2>
+
+<p>MCP is a command line utility (CLI), and therefore must be used from a console.
+If you don't know how to use a console have a look to the thousand of tutorials
+available on the Internet and come back later.</p>
+
+<p>Its a good idea to place <code>mcp</code> executable (<code>mcp.exe</code> in Windows platform)
+somewhere in your hard drive and include that directory in your <code>PATH</code>
+environment variable. If you do so you will be able to execute <code>mcp</code> easily.</p>
+
+<p>Before anything else, please execute <code>mcp --help</code> to familiarize yourself with
+the command options.</p>
+
+<div class="highlight highlight-shell"><pre>$ mcp --help
+Usage: mcp -l <span class="pl-k">&lt;</span>cas-file<span class="pl-k">&gt;</span>
+       mcp -a <span class="pl-k">&lt;</span>cas-file<span class="pl-k">&gt;</span> <span class="pl-k">&lt;</span>file<span class="pl-k">&gt;</span>...
+       mcp -x <span class="pl-k">&lt;</span>cas-file<span class="pl-k">&gt;</span>
+       mcp -e <span class="pl-k">&lt;</span>cas-file<span class="pl-k">&gt;</span> <span class="pl-k">&lt;</span>wav-file<span class="pl-k">&gt;</span>
+       mcp --help
+       mcp --version
+
+Options:
+    -h, --help                  Print this message
+    -v, --version               Print the mcp version
+    -l, --list                  Lists the contents of the given CAS file
+    -a, --add                   Add new files to a given CAS file. If the CAS
+                                file does not exist, it is created.
+    -x, --extract               Extracts the contents from the given CAS file
+    -e, --export                Exports the CAS file into a WAV file</pre></div>
+
+<p>Let's have a look to each of the commands to see how they work.</p>
+
+<h3>
+<a id="list-package-contents" class="anchor" href="#list-package-contents" aria-hidden="true"><span class="octicon octicon-link"></span></a>List package contents</h3>
+
+<p>With <code>mcp -l arkanoid.cas</code> (or longer version <code>mcp --list arkanoid.cas</code>), we
+can see the contents of the <code>arkanoid.cas</code> file.</p>
+
+<div class="highlight highlight-shell"><pre>$ mcp -l arkanoid.cas
+ascii  <span class="pl-k">|</span> ark    <span class="pl-k">|</span>   256 bytes <span class="pl-k">|</span>
+bin    <span class="pl-k">|</span> ARK    <span class="pl-k">|</span>    96 bytes <span class="pl-k">|</span> [0xc000,0xc057]:0xc000
+custom <span class="pl-k">|</span>        <span class="pl-k">|</span> 32768 bytes <span class="pl-k">|</span></pre></div>
+
+<p>As you can see, the contents of the file are shown. In this example we have
+three files in the CAS tape. The first column indicates the file type, which
+can be one of the following:</p>
+
+<ul>
+<li>
+<code>binary</code>: a binary file, probably containing a mix of binary code and data.
+It is typically loaded with <code>BLOAD</code> command from the Basic interpreter.</li>
+<li>
+<code>ascii</code>: an ASCII file, probably containing a non-tokenized Basic program.
+It is typically loaded with <code>LOAD</code> command from the Basic interpreter.</li>
+<li>
+<code>basic</code>: a Basic file, containing a tokenized Basic program. It is typically
+loaded with <code>CLOAD</code> command from the Basic interpreter.</li>
+<li>
+<code>custom</code>: custom data, aimed to be loaded by some program in a custom way.</li>
+</ul>
+
+<p>The second column shows the name of the file. The third column shows the length
+of the file in bytes. The forth column is only shown for binary files, and it
+contains the memory addresses where the binary data will be placed: start
+address, end address and begin address.</p>
+
+<h3>
+<a id="add-contents-to-package" class="anchor" href="#add-contents-to-package" aria-hidden="true"><span class="octicon octicon-link"></span></a>Add contents to package</h3>
+
+<p>With <code>mcp -a myprogram.cas myprog.bin</code>, you can create a new CAS file
+<code>myprogram.cas</code> that contains the file <code>myprog.bin</code>.</p>
+
+<div class="highlight highlight-shell"><pre>$ mcp -a myprogram.cas myprog.bin
+Adding myprog.bin... Done</pre></div>
+
+<p>You can check the contents of the new CAS file with <code>mcp -l</code>.</p>
+
+<div class="highlight highlight-shell"><pre>$ mcp -l myprogram.cas
+bin    <span class="pl-k">|</span> myprog <span class="pl-k">|</span>   100 bytes <span class="pl-k">|</span> [0x8000,0x803e]:0x8000</pre></div>
+
+<p>The bin filename is intentionally shorten than the CAS file. Tape filenames
+are limited to six bytes. If your bin file would be <code>myprogram.bin</code> its name
+would be truncated.</p>
+
+<div class="highlight highlight-shell"><pre>$ mcp -a myprogram.cas myprogram.bin
+Adding myprogram.bin... Warning: filename myprogram.bin is too long, truncating
+Done
+
+$ mcp -l myprogram.cas
+bin    <span class="pl-k">|</span> myprog <span class="pl-k">|</span>   100 bytes <span class="pl-k">|</span> [0x8000,0x803e]:0x8000</pre></div>
+
+<p>MCP is able to determine the file type by the file extension with the following
+criteria:</p>
+
+<ul>
+<li>
+<code>file.bin</code> is interpreted and stored as binary file. The binary file ID byte
+(<code>0xfe</code>) is automatically removed when dumped into the CAS file. Please remember
+that binary files in cassette do not include it.</li>
+<li>
+<code>file.asc</code> is interpreted and stored as ASCII file. Its contents are automatically
+padded by MCP with EOF (end-of-file) bytes to have 256-byte aligned blocks required
+by MSX systems to load the file successfully.</li>
+<li>
+<code>file.bas</code> is interpreted and stored as Basic file</li>
+<li>Any other file extension is interpreted as and stored as a custom file</li>
+</ul>
+
+<p>It is possible to add new files to an existing CAS file.</p>
+
+<div class="highlight highlight-shell"><pre>$ mcp -l myprogram.cas
+bin    <span class="pl-k">|</span> myprog <span class="pl-k">|</span>   100 bytes <span class="pl-k">|</span> [0x8000,0x803e]:0x8000
+
+$ mcp -a myprogram.cas foobar.dat
+Adding foobar.dat... Done
+
+$ mcp -l myprogram.cas
+bin    <span class="pl-k">|</span> myprog <span class="pl-k">|</span>   100 bytes <span class="pl-k">|</span> [0x8000,0x803e]:0x8000
+custom <span class="pl-k">|</span>        <span class="pl-k">|</span>  6920 bytes <span class="pl-k">|</span></pre></div>
+
+<p>Nevertheless, you don't have to add files one by one. You can specify several
+files and all them will be added to the CAS file.</p>
+
+<div class="highlight highlight-shell"><pre>$ mcp -l myprogram.cas
+bin    <span class="pl-k">|</span> myprog <span class="pl-k">|</span>   100 bytes <span class="pl-k">|</span> [0x8000,0x803e]:0x8000
+custom <span class="pl-k">|</span>        <span class="pl-k">|</span>  6920 bytes <span class="pl-k">|</span>
+
+$ mcp -a myprogram.cas foobar2.dat foobar3.dat
+Adding foobar2.dat... Done
+Adding foobar3.dat... Done
+
+$ mcp -l myprogram.cas
+bin    <span class="pl-k">|</span> myprog <span class="pl-k">|</span>   100 bytes <span class="pl-k">|</span> [0x8000,0x803e]:0x8000
+custom <span class="pl-k">|</span>        <span class="pl-k">|</span>  6920 bytes <span class="pl-k">|</span>
+custom <span class="pl-k">|</span>        <span class="pl-k">|</span> 29648 bytes <span class="pl-k">|</span>
+custom <span class="pl-k">|</span>        <span class="pl-k">|</span> 49272 bytes <span class="pl-k">|</span></pre></div>
+
+<h3>
+<a id="extract-package-contents" class="anchor" href="#extract-package-contents" aria-hidden="true"><span class="octicon octicon-link"></span></a>Extract package contents</h3>
+
+<p>Using <code>mcp -x arkanoid.cas</code>, you can extract the contents of <code>arkanoid.cas</code>
+into the working directory.</p>
+
+<div class="highlight highlight-shell"><pre>$ mcp -x arkanoid.cas
+Extracting ark.asc... Done
+Extracting ARK.bin... Done
+Extracting custom.001... Done
+
+$ ls
+ARK.bin     ark.asc     arkanoid.cas    custom.001</pre></div>
+
+<p>The files are extracted using the following criteria:</p>
+
+<ul>
+<li>Binary files are extracted with the original name plus <code>.bin</code> extension.</li>
+<li>ASCII files are extracted with the original name plus <code>.asc</code> extension.</li>
+<li>Basic files are extracted with the original name plus <code>.bas</code> extension.</li>
+<li>Custom files are extracted as <code>custom.XXX</code>, where <code>XXX</code> is a sequence number
+indicating the relative position of the custom file in the tape.</li>
+</ul>
+
+<p>In case of ASCII files, the trailing EOF bytes are not copied to the target
+file so you can read the Basic source code as text.</p>
+
+<p>In case of binary files, the leading ID byte (<code>0xfe</code>) is automatically
+prepended to the target file.</p>
+
+<div class="highlight highlight-shell"><pre>$ file ark.asc
+ark.asc: ASCII text, with CRLF line terminators
+
+$ cat ark.asc
+10 BLOAD<span class="pl-s"><span class="pl-pds">"</span>cas:<span class="pl-pds">"</span></span>,R</pre></div>
+
+<h3>
+<a id="export-package-to-wav-format" class="anchor" href="#export-package-to-wav-format" aria-hidden="true"><span class="octicon octicon-link"></span></a>Export package to WAV format</h3>
+
+<p>Using <code>mcp -e myprogram.cas myprogram.wav</code> you can export the contents of the
+tape into a WAV file. The WAV file can be reproduced with your sound card to
+load the data into a real MSX hardware using the cassette interface.</p>
+
+<div class="highlight highlight-shell"><pre>$ mcp -e myprogram.cas myprogram.wav
+Encoding block 0... 371 KiB
+Encoding block 1... 151 KiB
+Encoding block 2... 2788 KiB
+Encoding block 3... 11577 KiB
+Encoding block 4... 19166 KiB
+
+$ file myprogram.wav
+myprogram.wav: RIFF (little-endian) data, WAVE audio, Microsoft PCM, 8 bit, mono 43200 Hz</pre></div>
+
+<p>The resulting file is ready to be played and make your homebrew programs
+loadable in your MSX computer.</p>
+
+<h2>
+<a id="acknowledgements" class="anchor" href="#acknowledgements" aria-hidden="true"><span class="octicon octicon-link"></span></a>Acknowledgements</h2>
+
+<p>MCP was coded by porting several code fragments from
+<a href="http://home.kabelfoon.nl/%7Evincentd/">CAS Tools</a>. Many thanks to Vincent van
+Dam for his software.</p>
+
+<p>MCP export feature has been tested with several games in
+<a href="http://openmsx.sourceforge.net">OpenMSX</a> emulator. Many thanks to its authors
+and congratulations for making such a great software.</p>
+      </section>
+
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+    
+  </body>
+</html>
