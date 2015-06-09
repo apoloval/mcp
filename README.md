@@ -62,12 +62,24 @@ MCP is a command line utility (CLI), and therefore must be used from a console.
 If you don't know how to use a console have a look to the thousand of tutorials
 available on the Internet and come back later.
 
-Its a good idea to place `mcp` executable (`mcp.exe` in Windows platform)
-somewhere in your hard drive and include that directory in your `PATH`
-environment variable. If you do so you will be able to execute `mcp` easily.
+In you have installed from binaries, take into account that.
 
-Before anything else, please execute `mcp --help` to familiarize yourself with
-the command options.
+* In Windows platform, you will find an app launcher named `MCP Console`. This is
+just a Windows shell with the apprpriate `%PATH%` definition to find the `mcp`
+program. Run this launcher and test it by typing `mcp --help`.
+* In Mac OS X, the installer will put `mcp` command in `/usr/local/bin`. In a
+typicall installation, this directory should be listed in `PATH` environment
+variable, so `mcp` can be executed in your terminal. Please open `Terminal` and
+type `mcp --help` to check it works.
+
+If you have installed from sources, you are responsible to put `mcp` program
+somewhere in your hard drive and (suggestion) include that directory in your
+`PATH` environment variable. If you do so you will be able to execute `mcp`
+easily.
+
+As mentioned above, executing `mcp --help` will let you to know if `mcp` is
+working fine. But it also presents you the information needed to familiarize
+yourself with the command options.
 
 ```shell
 $ mcp --help
