@@ -14,7 +14,6 @@ use std::iter::FromIterator;
 use std::result;
 
 use byteorder::{LittleEndian, WriteBytesExt};
-use byteorder::Error as ByteOrderError;
 
 const SHORT_PULSE: u32 = 2400;
 const LONG_PULSE: u32 = 1200;
@@ -23,22 +22,11 @@ const SHORT_HEADER: u32 = 4000;
 const LONG_HEADER: u32 = 16000;
 
 pub enum Error {
-	UnexpectedEOF,
 	Io(IoError)
 }
 
 impl From<IoError> for Error {
 	fn from(e: IoError) -> Error { Error::Io(e) }
-}
-
-impl From<ByteOrderError> for Error {
-	fn from(e: ByteOrderError) -> Error {
-		match e {
-			ByteOrderError::Io(ioe) => Error::Io(ioe),
-			ByteOrderError::UnexpectedEOF => Error::UnexpectedEOF,
-
-		}
-	}
 }
 
 type Result<T> = result::Result<T, Error>;
@@ -72,7 +60,7 @@ impl Exporter {
 	///
 	/// This method dumps the encoded data into the given `Write` instance. Before
 	/// calling this method, you must use the `write_X()` functions to encode
-	/// some data. 
+	/// some data.
 	pub fn export<W: Write>(&self, w: &mut W) -> Result<()> {
 		try!(self.write_wave(w));
 		try!(w.write(&*self.buffer));
