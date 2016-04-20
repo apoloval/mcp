@@ -20,8 +20,8 @@ mod wav;
 use std::convert::From;
 use std::fs;
 use std::fs::File;
+use std::io;
 use std::io::{Read, Write};
-use std::io::Error as IoError;
 use std::path::Path;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -29,11 +29,11 @@ const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 #[derive(Debug)]
 enum Error {
     InvalidInputFile(String),
-    Io(IoError)
+    Io(io::Error)
 }
 
-impl From<IoError> for Error {
-    fn from(e: IoError) -> Error { Error::Io(e) }
+impl From<io::Error> for Error {
+    fn from(e: io::Error) -> Error { Error::Io(e) }
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -50,9 +50,9 @@ fn main() {
     };
     if result.is_err() {
         match result.unwrap_err() {
-            Error::InvalidInputFile(file) => 
+            Error::InvalidInputFile(file) =>
                 println!("Error: {} is not a valid input file", file),
-            Error::Io(e) => 
+            Error::Io(e) =>
                 println!("Error: IO operation failed: {}", e),
         }
     }

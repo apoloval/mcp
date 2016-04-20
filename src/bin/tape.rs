@@ -6,9 +6,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-use std::io::Read;
-use std::io::Error as IoError;
-use std::io::Write;
+use std::io;
+use std::io::{Read, Write};
 use std::str::from_utf8;
 
 use byteorder::{ByteOrder, LittleEndian};
@@ -197,7 +196,7 @@ impl Tape {
     /// if there is an error while reading.
     ///
 	#[allow(dead_code)]
-	pub fn read<R: Read>(input: &mut R) -> Result<Tape, IoError> {
+	pub fn read<R: Read>(input: &mut R) -> Result<Tape, io::Error> {
 		let mut bytes: Vec<u8> = vec![];
 		try!(input.read_to_end(&mut bytes));
 		Ok(Tape::from_bytes(&bytes[..]))
