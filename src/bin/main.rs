@@ -109,7 +109,7 @@ fn extract_all(path: &Path) -> Result<()> {
 fn extract_file(file: &tape::File, out_path: &Path) -> Result<()> {
     let (out_filename, clash) = try!(file::unique_filename(out_path));
     if clash {
-        println!("Warning: filename {:?} already exists, writing output to {:?}",
+        print!("Warning: filename {:?} already exists, writing output to {:?}... ",
             out_path, out_filename);
     }
     let mut ofile = try!(File::create(&out_filename));
@@ -163,7 +163,7 @@ fn add_bin_file(tape: &mut tape::Tape, file: &Path) -> Result<()> {
     let bytes = if data[0] == 0xfe { &data[1..] } else { &data[..] };
     let (fname, truncated) = try!(file::file_name_of(file));
     if truncated {
-        println!("Warning: file name truncated to {}", String::from_utf8_lossy(&fname));
+        print!("Warning: file name truncated to {}... ", String::from_utf8_lossy(&fname));
     }
     tape.append_bin(&fname, bytes);
     Ok(())
@@ -173,7 +173,7 @@ fn add_basic_file(tape: &mut tape::Tape, file: &Path) -> Result<()> {
     let data = try!(file::read_content(file));
     let (fname, truncated) = try!(file::file_name_of(file));
     if truncated {
-        println!("Warning: file name truncated to {}", String::from_utf8_lossy(&fname));
+        print!("Warning: file name truncated to {}... ", String::from_utf8_lossy(&fname));
     }
     tape.append_basic(&fname, &data);
     Ok(())
@@ -183,7 +183,7 @@ fn add_ascii_file(tape: &mut tape::Tape, file: &Path) -> Result<()> {
     let data = try!(file::read_content(file));
     let (fname, truncated) = try!(file::file_name_of(file));
     if truncated {
-        println!("Warning: file name truncated to {}", String::from_utf8_lossy(&fname));
+        print!("Warning: file name truncated to {}... ", String::from_utf8_lossy(&fname));
     }
     tape.append_ascii(&fname, &data);
     Ok(())
