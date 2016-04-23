@@ -24,6 +24,8 @@ use std::io::{Read, Write};
 use std::io::Error as IoError;
 use std::path::Path;
 
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
 #[derive(Debug)]
 enum Error {
     InvalidInputFile(String),
@@ -57,7 +59,7 @@ fn main() {
 }
 
 fn print_version() -> Result<()> {
-    println!("MSX CAS Packager (MCP) v0.1.0");
+    println!("MSX CAS Packager (MCP) v{}", VERSION);
     println!("Copyright (C) 2015 Alvaro Polo");
     println!("");
     println!("This program is subject to the terms of the Mozilla Public License v2.0.");
