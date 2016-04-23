@@ -7,41 +7,17 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use std::f32;
-use std::convert::From;
+use std::io;
 use std::io::Write;
-use std::io::Error as IoError;
 use std::iter::FromIterator;
-use std::result;
 
 use byteorder::{LittleEndian, WriteBytesExt};
-use byteorder::Error as ByteOrderError;
 
 const SHORT_PULSE: u32 = 2400;
 const LONG_PULSE: u32 = 1200;
 
 const SHORT_HEADER: u32 = 4000;
 const LONG_HEADER: u32 = 16000;
-
-pub enum Error {
-	UnexpectedEOF,
-	Io(IoError)
-}
-
-impl From<IoError> for Error {
-	fn from(e: IoError) -> Error { Error::Io(e) }
-}
-
-impl From<ByteOrderError> for Error {
-	fn from(e: ByteOrderError) -> Error {
-		match e {
-			ByteOrderError::Io(ioe) => Error::Io(ioe),
-			ByteOrderError::UnexpectedEOF => Error::UnexpectedEOF,
-
-		}
-	}
-}
-
-type Result<T> = result::Result<T, Error>;
 
 /// An object capable to export binary data in WAV format
 ///
@@ -72,25 +48,25 @@ impl Exporter {
 	///
 	/// This method dumps the encoded data into the given `Write` instance. Before
 	/// calling this method, you must use the `write_X()` functions to encode
-	/// some data. 
-	pub fn export<W: Write>(&self, w: &mut W) -> Result<()> {
+	/// some data.
+	pub fn export<W: Write>(&self, w: &mut W) -> io::Result<()> {
 		try!(self.write_wave(w));
 		try!(w.write(&*self.buffer));
 		Ok(())
 	}
 
 	/// Write a short header to the internal buffer
-	pub fn write_short_header(&mut self) -> Result<usize> {
+	pub fn write_short_header(&mut self) -> io::Result<usize> {
 		self.write_header(SHORT_HEADER)
 	}
 
 	/// Write a long header to the internal buffer
-	pub fn write_long_header(&mut self) -> Result<usize> {
+	pub fn write_long_header(&mut self) -> io::Result<usize> {
 		self.write_header(LONG_HEADER)
 	}
 
 	/// Write a header comprised by the given amount of pulses to the internal buffer
-	pub fn write_header(&mut self, pulses: u32) -> Result<usize> {
+	pub fn write_header(&mut self, pulses: u32) -> io::Result<usize> {
 		let to = pulses * self.bauds / 1200;
 		let mut nbytes = 0;
 		for _ in 0..to {
@@ -100,28 +76,28 @@ impl Exporter {
 	}
 
 	/// Write a short silence (1 second) to the internal buffer
-	pub fn write_short_silence(&mut self) -> Result<usize> {
+	pub fn write_short_silence(&mut self) -> io::Result<usize> {
 		let pulses = self.sample_rate;
 		self.write_silence(pulses)
 	}
 
 	/// Write a long silence (2 seconds) to the internal buffer
-	pub fn write_long_silence(&mut self) -> Result<usize> {
+	pub fn write_long_silence(&mut self) -> io::Result<usize> {
 		let pulses = self.sample_rate * 2;
 		self.write_silence(pulses)
 	}
 
 	/// Write a silence comprised by the given amount of pulses to the internal buffer
-	pub fn write_silence(&mut self, pulses: u32) ->  Result<usize> {
+	pub fn write_silence(&mut self, pulses: u32) ->  io::Result<usize> {
 		let mut nbytes = 0;
 		for _ in 0..pulses {
-			nbytes += try!(self.buffer.write(&[0x80]).map_err(Error::from));
+			nbytes += try!(self.buffer.write(&[0x80]));
 		}
 		Ok(nbytes)
 	}
 
 	/// Write binary data to the internal buffer
-	pub fn write_data(&mut self, data: &[u8]) -> Result<usize> {
+	pub fn write_data(&mut self, data: &[u8]) -> io::Result<usize> {
 		let mut nbytes = 0;
 		for byte in data {
 			nbytes += try!(self.write_byte(*byte));
@@ -129,7 +105,7 @@ impl Exporter {
 		Ok(nbytes)
 	}
 
-	fn write_wave<W: Write>(&self, w: &mut W) -> Result<()> {
+	fn write_wave<W: Write>(&self, w: &mut W) -> io::Result<()> {
 		let data_len = self.buffer.len() as u32;
 		let file_len = data_len + 44;
 
@@ -175,7 +151,7 @@ impl Exporter {
 		Ok(())
 	}
 
-	fn write_byte(&mut self, byte: u8) -> Result<usize> {
+	fn write_byte(&mut self, byte: u8) -> io::Result<usize> {
 		let mut nbytes = 0;
 		nbytes += try!(self.write_pulse(LONG_PULSE));
 		let mut bits = byte;
@@ -194,12 +170,12 @@ impl Exporter {
 		Ok(nbytes)
 	}
 
-	fn write_pulse(&mut self, freq: u32) -> Result<usize> {
+	fn write_pulse(&mut self, freq: u32) -> io::Result<usize> {
 		let len = self.sample_rate / (self.bauds * (freq / 1200));
 		let scale = 2.0 * f32::consts::PI  / len as f32;
 		let func = |x: f32| (f32::sin(scale * x) * 127.0) as i8 as u8 ^ 0x80;
 		let bytes = Vec::from_iter((0..len).map(|x| func(x as f32)));
-		self.buffer.write(&bytes[..]).map_err(Error::from)
+		self.buffer.write(&bytes[..])
 	}
 }
 

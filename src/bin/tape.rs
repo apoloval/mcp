@@ -6,9 +6,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-use std::io::Read;
-use std::io::Error as IoError;
-use std::io::Write;
+use std::fs;
+use std::io;
+use std::io::{Read, Write};
+use std::path::Path;
 use std::str::from_utf8;
 
 use byteorder::{ByteOrder, LittleEndian};
@@ -119,11 +120,16 @@ impl<'a> File<'a> {
     /// Returns the name of this file, or `None` if it has no name.
     pub fn name(&self) -> Option<String> {
         match self {
-            &File::Bin(ref name, _, _, _, _) => Some(format!("{}.bin", name)),
-            &File::Basic(ref name, _) => Some(format!("{}.bas", name)),
-            &File::Ascii(ref name, _) => Some(format!("{}.asc", name)),
+            &File::Bin(ref name, _, _, _, _) => Some(format!("{}.bin", File::normalized_name(name))),
+            &File::Basic(ref name, _) => Some(format!("{}.bas", File::normalized_name(name))),
+            &File::Ascii(ref name, _) => Some(format!("{}.asc", File::normalized_name(name))),
             _ => None,
         }
+    }
+
+    fn normalized_name(name: &str) -> String {
+        if name.trim().is_empty() { "noname".to_string() }
+        else { name.to_string() }
     }
 }
 
@@ -190,6 +196,11 @@ impl Tape {
     /// Create a new empty tape.
     pub fn new() -> Tape { Tape { blocks: vec![] }}
 
+    pub fn from_file(filename: &Path) -> io::Result<Tape> {
+        let mut file = try!(fs::File::open(filename));
+        Tape::read(&mut file)
+    }
+
     /// Read a `Tape` instance from the given `Read` object.
     ///
     /// This function returns a new `Tape` instance as result of processing the
@@ -197,7 +208,7 @@ impl Tape {
     /// if there is an error while reading.
     ///
 	#[allow(dead_code)]
-	pub fn read<R: Read>(input: &mut R) -> Result<Tape, IoError> {
+	pub fn read<R: Read>(input: &mut R) -> io::Result<Tape> {
 		let mut bytes: Vec<u8> = vec![];
 		try!(input.read_to_end(&mut bytes));
 		Ok(Tape::from_bytes(&bytes[..]))
@@ -329,15 +340,15 @@ impl Tape {
 /// The tape filename is comprised by six ASCII characters. If the given string
 /// is too long, it is truncated.
 ///
-pub fn file_name(s: &str) -> [u8; 6] {
+pub fn file_name(s: &str) -> ([u8; 6], bool) {
     use std::cmp::min;
 
-    let last = if s.len() > 6 { 6 } else { s.len() };
+    let last = min(6, s.len());
 
     let mut name: [u8; 6] = [0x20; 6];
     let bytes = &s.as_bytes()[..last];
-    for i in 0..min(6, s.len()) { name[i] = bytes[i] }
-    name
+    for i in 0..last { name[i] = bytes[i] }
+    (name, s.len() > last)
 }
 
 #[cfg(test)]
@@ -522,7 +533,7 @@ mod test {
     fn should_add_bin_file_prop(bytes: Vec<u8>) -> bool {
         if bytes.len() < 6 { return true; }
         let mut tape = Tape::new();
-        let fname = file_name(&"foobar");
+        let (fname, _) = file_name(&"foobar");
         tape.append_bin(&fname, &bytes[..]);
 
         let files = Vec::from_iter(tape.files());
@@ -545,7 +556,7 @@ mod test {
 
     fn should_add_basic_file_prop(bytes: Vec<u8>) -> bool {
         let mut tape = Tape::new();
-        let fname = file_name(&"foobar");
+        let (fname, _) = file_name(&"foobar");
         tape.append_basic(&fname, &bytes[..]);
 
         let files = Vec::from_iter(tape.files());
@@ -569,7 +580,7 @@ mod test {
 
     fn should_add_ascii_file_prop(text: String) -> bool {
         let mut tape = Tape::new();
-        let fname = file_name(&"foobar");
+        let (fname, _) = file_name(&"foobar");
         tape.append_ascii(&fname, text.as_bytes());
 
         let files = Vec::from_iter(tape.files());

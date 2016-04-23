@@ -7,6 +7,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use std::env::args;
+use std::path::PathBuf;
 
 use docopt::Docopt;
 
@@ -33,18 +34,18 @@ Options:
 /// An enumeration of the commands accepted by `mcp`.
 ///
 /// * `Version`, prints the `mcp` version
-/// * `List(path: String)`, lists the contents of the given CAS file
-/// * `Add(path: String, files: Vec<String>)`, adds files to the given CAS file
-/// * `Extract(path: String, item: String)`, extract the given item from the given CAS file
-/// * `Export(path: String, output: String)`, export the given CAS file into given output WAV file
+/// * `List(path: PathBuf)`, lists the contents of the given CAS file
+/// * `Add(path: PathBuf, files: Vec<PathBuf>)`, adds files to the given CAS file
+/// * `Extract(path: PathBuf, item: PathBuf)`, extract the given item from the given CAS file
+/// * `Export(path: PathBuf, output: PathBuf)`, export the given CAS file into given output WAV file
 ///
 #[derive(Debug, PartialEq)]
 pub enum Command {
     Version,
-    List(String),
-    Add(String, Vec<String>),
-    Extract(String),
-    Export(String, String),
+    List(PathBuf),
+    Add(PathBuf, Vec<PathBuf>),
+    Extract(PathBuf),
+    Export(PathBuf, PathBuf),
 }
 
 /// A raw description of the arguments processed by DCOPT
@@ -67,17 +68,19 @@ struct Args {
 impl Args {
 
     /// Parse the
-    pub fn cmd(&self) -> Command {
+    pub fn cmd(self) -> Command {
         if self.flag_version {
             Command::Version
         } else if self.flag_list {
-            Command::List(self.arg_cas_file.clone())
+            Command::List(PathBuf::from(self.arg_cas_file))
         } else if self.flag_add {
-            Command::Add(self.arg_cas_file.clone(), self.arg_file.clone())
+            Command::Add(
+                PathBuf::from(self.arg_cas_file),
+                self.arg_file.iter().map(|f| PathBuf::from(f)).collect())
         } else if self.flag_extract {
-            Command::Extract(self.arg_cas_file.clone())
+            Command::Extract(PathBuf::from(self.arg_cas_file))
         } else if self.flag_export {
-            Command::Export(self.arg_cas_file.clone(), self.arg_wav_file.clone())
+            Command::Export(PathBuf::from(self.arg_cas_file), PathBuf::from(self.arg_wav_file))
         } else {
             panic!("args are parsed in a inconsistent state")
         }
@@ -104,6 +107,8 @@ pub fn parse_args<I, S>(args: I) -> Command where I: Iterator<Item=S>, S: Into<S
 #[cfg(test)]
 mod test {
 
+    use std::path::PathBuf;
+
     use super::*;
 
     #[test]
@@ -117,27 +122,27 @@ mod test {
     fn should_parse_list() {
         let argv = ["mcp", "--list", "foobar.cas"];
         let cmd = parse_args(argv.iter().map(|a| a.to_string()));
-        assert_eq!(Command::List("foobar.cas".to_string()), cmd);
+        assert_eq!(Command::List(PathBuf::from("foobar.cas")), cmd);
     }
 
     #[test]
     fn should_parse_add() {
         let argv = ["mcp", "--add", "foobar.cas", "f1.bin"];
         let cmd = parse_args(argv.iter().map(|a| a.to_string()));
-        assert_eq!(Command::Add("foobar.cas".to_string(), vec![ "f1.bin".to_string()]), cmd);
+        assert_eq!(Command::Add(PathBuf::from("foobar.cas"), vec![ PathBuf::from("f1.bin")]), cmd);
     }
 
     #[test]
     fn should_parse_extract() {
         let argv = ["mcp", "--extract", "foobar.cas"];
         let cmd = parse_args(argv.iter().map(|a| a.to_string()));
-        assert_eq!(Command::Extract("foobar.cas".to_string()), cmd);
+        assert_eq!(Command::Extract(PathBuf::from("foobar.cas")), cmd);
     }
 
     #[test]
     fn should_parse_export() {
         let argv = ["mcp", "--export", "foobar.cas", "foobar.wav"];
         let cmd = parse_args(argv.iter().map(|a| a.to_string()));
-        assert_eq!(Command::Export("foobar.cas".to_string(), "foobar.wav".to_string()), cmd);
+        assert_eq!(Command::Export(PathBuf::from("foobar.cas"), PathBuf::from("foobar.wav")), cmd);
     }
 }
