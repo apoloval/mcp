@@ -97,7 +97,8 @@ pub fn parse() -> Command {
 }
 
 /// Parse the given arguments and return the corresponding `Command` object
-pub fn parse_args<I, S>(args: I) -> Command where I: Iterator<Item=S>, S: Into<String> {
+pub fn parse_args<I, S>(args: I) -> Command
+where S: AsRef<str>, I: Iterator<Item=S>, S: Into<String> {
     let parsed: Args = Docopt::new(USAGE)
         .and_then(|d| d.argv(args).decode())
         .unwrap_or_else(|e| e.exit());
