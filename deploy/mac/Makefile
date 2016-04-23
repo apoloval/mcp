@@ -8,7 +8,7 @@ files:
 
 resources:
 	mkdir resources
-	sed "s/VERSION/\$${VERSION}/g" welcome.html.template > resources/welcome.html
+	sed "s/\$$VERSION/${VERSION}/g" welcome.html.template > resources/welcome.html
 	cp license.html resources/
 
 mcp.pkg: files
