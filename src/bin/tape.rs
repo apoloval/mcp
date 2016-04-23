@@ -120,11 +120,16 @@ impl<'a> File<'a> {
     /// Returns the name of this file, or `None` if it has no name.
     pub fn name(&self) -> Option<String> {
         match self {
-            &File::Bin(ref name, _, _, _, _) => Some(format!("{}.bin", name)),
-            &File::Basic(ref name, _) => Some(format!("{}.bas", name)),
-            &File::Ascii(ref name, _) => Some(format!("{}.asc", name)),
+            &File::Bin(ref name, _, _, _, _) => Some(format!("{}.bin", File::normalized_name(name))),
+            &File::Basic(ref name, _) => Some(format!("{}.bas", File::normalized_name(name))),
+            &File::Ascii(ref name, _) => Some(format!("{}.asc", File::normalized_name(name))),
             _ => None,
         }
+    }
+
+    fn normalized_name(name: &str) -> String {
+        if name.trim().is_empty() { "noname".to_string() }
+        else { name.to_string() }
     }
 }
 
