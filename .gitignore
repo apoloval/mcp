@@ -1,2 +1,5 @@
 *.exe
+*.pkg
+deploy/*/files/
+deploy/*/resources/
 target/
