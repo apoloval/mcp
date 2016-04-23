@@ -10,8 +10,8 @@ extern crate byteorder;
 extern crate docopt;
 extern crate rustc_serialize;
 
-#[cfg(test)]
-extern crate quickcheck;
+#[cfg(test)] extern crate quickcheck;
+#[cfg(test)] extern crate tempdir;
 
 mod args;
 mod tape;

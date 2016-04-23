@@ -11,6 +11,7 @@ rustc-serialize = "0.3"
 
 [dev-dependencies]
 quickcheck = "0.2"
+tempdir = "0.3"
 
 [[bin]]
 name = "mcp"
