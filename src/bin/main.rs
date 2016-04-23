@@ -100,14 +100,19 @@ fn extract_all(path: &Path) -> Result<()> {
             .map(|n| n.to_string())
             .unwrap_or_else(|| format!("custom.{:03}", { next_custom += 1; next_custom }));
         print!("Extracting {}... ", out_path);
-        try!(extract_file(&file, &out_path[..]));
+        try!(extract_file(&file, Path::new(&out_path)));
         println!("Done");
     }
     Ok(())
 }
 
-fn extract_file(file: &tape::File, out_path: &str) -> Result<()> {
-    let mut ofile = try!(File::create(out_path));
+fn extract_file(file: &tape::File, out_path: &Path) -> Result<()> {
+    let (out_filename, clash) = try!(file::unique_filename(out_path));
+    if clash {
+        println!("Warning: filename {:?} already exists, writing output to {:?}",
+            out_path, out_filename);
+    }
+    let mut ofile = try!(File::create(&out_filename));
     match file {
         &tape::File::Bin(_, _, _, _, data) => {
             // First, write the BIN file ID byte not present in cassete

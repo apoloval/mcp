@@ -6,6 +6,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+use std::ffi::OsStr;
 use std::fs;
 use std::io;
 use std::io::{Read, Write};
@@ -76,9 +77,40 @@ fn has_extension(path: &Path, ext: &str) -> bool {
         .map(|e| e.to_lowercase() == ext).unwrap_or(false)
 }
 
+pub fn unique_filename(path: &Path) -> io::Result<(PathBuf, bool)> {
+    if !exists(path) {
+        Ok((path.to_path_buf(), false))
+    } else {
+        unique_filename_for_suffix(path, 1).map(|f| (f, true))
+    }
+}
+
+fn unique_filename_for_suffix(path: &Path, suffix: usize) -> io::Result<PathBuf> {
+    let stem = try!(extract_from_path(path, |p| p.file_stem()));
+    let ext = path.extension()
+        .and_then(|e| e.to_str())
+        .map(|e| format!(".{}", e))
+        .unwrap_or("".to_string());
+    let target = path.with_file_name(format!("{}-{}{}", stem, suffix, ext));
+    if !exists(&target) {
+        Ok(target)
+    } else {
+        unique_filename_for_suffix(path, suffix + 1)
+    }
+}
+
+fn extract_from_path<F>(path: &Path, f: F) -> io::Result<&str>
+where F: FnOnce(&Path) -> Option<&OsStr> {
+    f(path).and_then(|s| s.to_str()).ok_or_else(|| io::Error::new(
+        io::ErrorKind::InvalidInput,
+        format!("cannot extract path element from {:?}", path)))
+}
+
 #[cfg(test)]
 mod tests {
 
+    use std::ffi::OsStr;
+    use std::fs::File;
     use std::path::{Path, PathBuf};
 
     use tempdir::TempDir;
@@ -150,10 +182,51 @@ mod tests {
         assert!(!is_basic_file(Path::new("foobar.basi")));
     }
 
-    fn with_unexisting_file<F>(filename: &str, f: F) where F: FnOnce(&Path) {
+
+    #[test]
+    fn should_compute_unique_filename() {
+        with_unexisting_file("foobar", |f| {
+            let (alt, clash) = unique_filename(f).unwrap();
+            assert!(!clash);
+            assert_eq!(alt, f);
+        });
+        with_existing_file("foobar", |f| {
+            let (alt, clash) = unique_filename(f).unwrap();
+            assert!(clash);
+            assert_eq!(alt, f.with_file_name("foobar-1"));
+        });
+        with_existing_file("foobar.bin", |f| {
+            let (alt, clash) = unique_filename(f).unwrap();
+            assert!(clash);
+            assert_eq!(alt, f.with_file_name("foobar-1.bin"));
+        });
+        with_existing_file("foobar.bin", |f1| {
+            with_existing_file_from(f1, "foobar-1.bin", |_| {
+                let (alt, clash) = unique_filename(f1).unwrap();
+                assert!(clash);
+                assert_eq!(alt, f1.with_file_name("foobar-2.bin"));
+            })
+        });
+    }
+
+    fn with_unexisting_file<P, F>(filename: P, f: F) where P: AsRef<Path>, F: FnOnce(&Path) {
         let temp = TempDir::new("mcp").unwrap();
         let mut path_buf = temp.path().to_path_buf();
         path_buf.push(filename);
         f(&path_buf);
+    }
+
+    fn with_existing_file<P, F>(filename: P, f: F) where P: AsRef<Path>, F: FnOnce(&Path) {
+        with_unexisting_file(filename, |file| {
+            { File::create(file).unwrap(); }
+            f(file);
+        })
+    }
+
+    fn with_existing_file_from<P1, P2, F>(filename: P1, new_name: P2, f: F)
+    where P1: AsRef<Path>, P2: AsRef<OsStr>, F: FnOnce(&Path) {
+        let file: &Path = filename.as_ref();
+        let other = file.with_file_name(new_name);
+        with_existing_file(other, f)
     }
 }
