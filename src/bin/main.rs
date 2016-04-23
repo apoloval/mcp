@@ -14,21 +14,22 @@ extern crate rustc_serialize;
 #[cfg(test)] extern crate tempdir;
 
 mod args;
+mod file;
 mod tape;
 mod wav;
 
 use std::convert::From;
-use std::fs;
 use std::fs::File;
 use std::io;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::Path;
+
+use tape::Tape;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 #[derive(Debug)]
 enum Error {
-    InvalidInputFile(String),
     Io(io::Error)
 }
 
@@ -43,15 +44,16 @@ fn main() {
     let cmd = args::parse();
     let result = match cmd {
         args::Command::Version => print_version(),
-        args::Command::List(path) => list_files(&path[..]),
-        args::Command::Add(path, files) =>  add_files(&path[..], &files[..]),
-        args::Command::Extract(path) => extract_all(&path[..]),
+        args::Command::List(path) => list_files(&path),
+        args::Command::Add(path, files) =>  {
+            let input_files: Vec<&Path> = files.iter().map(|f| f.as_path()).collect();
+            add_files(&path, &input_files)
+        },
+        args::Command::Extract(path) => extract_all(&path),
         args::Command::Export(path, output) => export(&*path, &*output),
     };
     if result.is_err() {
         match result.unwrap_err() {
-            Error::InvalidInputFile(file) =>
-                println!("Error: {} is not a valid input file", file),
             Error::Io(e) =>
                 println!("Error: IO operation failed: {}", e),
         }
@@ -67,55 +69,8 @@ fn print_version() -> Result<()> {
     Ok(())
 }
 
-macro_rules! read_file {
-    ($name: expr) => ({
-        let mut file = try!(File::open($name));
-        let mut data: Vec<u8> = vec![];
-        try!(file.read_to_end(&mut data).map(|_| data))
-    });
-}
-
-macro_rules! open_tape {
-    ($path: expr) => ({
-        let mut tape_file = try!(File::open($path));
-        try!(tape::Tape::read(&mut tape_file))
-    })
-}
-
-macro_rules! open_or_create_tape {
-    ($path: expr) => ({
-        match File::open($path) {
-            Ok(mut f) => try!(tape::Tape::read(&mut f).map(|t| (t, true))),
-            Err(_) => (tape::Tape::new(), false),
-        }
-    })
-}
-
-macro_rules! file_name {
-    ($file: expr) => ({
-        let src_name = Path::new($file).file_name().unwrap().to_str().unwrap();
-        let fname = &src_name[..src_name.len() - 4];
-        if fname.len() > 6 {
-            println!("Warning: filename {} is too long, truncating", src_name);
-        }
-        tape::file_name(fname)
-    })
-}
-
-fn file_name(path: &str) -> Result<[u8;6]> {
-    let src_name = try!(Path::new(path)
-        .file_name()
-        .map_or(None, |f| f.to_str())
-        .ok_or(Error::InvalidInputFile(path.to_string())));
-    let fname = &src_name[..src_name.len() - 4];
-    if fname.len() > 6 {
-        println!("Warning: filename {} is too long, truncating", src_name);
-    }
-    Ok(tape::file_name(fname))
-}
-
-fn list_files(path: &str) -> Result<()> {
-    let tape = open_tape!(path);
+fn list_files(path: &Path) -> Result<()> {
+    let tape = try!(tape::Tape::from_file(path));
     for file in tape.files() {
         match file {
             tape::File::Bin(name, begin, end, start, data) => {
@@ -137,8 +92,8 @@ fn list_files(path: &str) -> Result<()> {
     Ok(())
 }
 
-fn extract_all(path: &str) -> Result<()> {
-    let tape = open_tape!(path);
+fn extract_all(path: &Path) -> Result<()> {
+    let tape = try!(tape::Tape::from_file(path));
     let mut next_custom = 0;
     for file in tape.files() {
         let out_path = file.name()
@@ -175,69 +130,77 @@ fn extract_file(file: &tape::File, out_path: &str) -> Result<()> {
     Ok(())
 }
 
-fn add_files(path: &str, files: &[String]) -> Result<()> {
-    let (mut tape, tape_exist) = open_or_create_tape!(path);
-    for fname in files {
-        print!("Adding {}... ", fname);
-        if fname.ends_with(".bin") {
-            try!(add_bin_file(&mut tape, &fname[..]));
-        } else if fname.ends_with(".asc") {
-            try!(add_ascii_file(&mut tape, &fname[..]));
-        } else if fname.ends_with(".bas") {
-            try!(add_basic_file(&mut tape, &fname[..]));
+fn add_files(path: &Path, files: &[&Path]) -> Result<()> {
+    let mut tape = Tape::from_file(path).unwrap_or_else(|_| Tape::new());
+    for file in files {
+        if file::is_bin_file(file) {
+            print!("Adding binary file {:?}... ", file.as_os_str());
+            try!(add_bin_file(&mut tape, &file));
+        } else if file::is_ascii_file(file) {
+            print!("Adding ascii file {:?}... ", file.as_os_str());
+            try!(add_ascii_file(&mut tape, &file));
+        } else if file::is_basic_file(file) {
+            print!("Adding basic file {:?}... ", file.as_os_str());
+            try!(add_basic_file(&mut tape, &file));
         } else {
-            try!(add_custom_file(&mut tape, &fname[..]));
+            print!("Adding custom file {:?}... ", file.as_os_str());
+            try!(add_custom_file(&mut tape, &file));
         }
         println!("Done");
     }
-    let otmp = format!("{}.tmp", path);
-    try!(save_tape(&tape, &otmp[..]));
-    if tape_exist {
-        try!(fs::remove_file(path));
-    }
-    try!(fs::rename(otmp, path));
+    try!(save_tape(&tape, &path));
     Ok(())
 }
 
-fn add_bin_file(tape: &mut tape::Tape, file: &str) -> Result<()> {
-    let data = &read_file!(file)[..];
+fn add_bin_file(tape: &mut tape::Tape, file: &Path) -> Result<()> {
+    let data = try!(file::read_content(file));
     // Skip bin file ID byte if present
-    let bytes = if data[0] == 0xfe { &data[1..] } else { data };
-    let fname = try!(file_name(file));
+    let bytes = if data[0] == 0xfe { &data[1..] } else { &data[..] };
+    let (fname, truncated) = try!(file::file_name_of(file));
+    if truncated {
+        println!("Warning: file name truncated to {}", String::from_utf8_lossy(&fname));
+    }
     tape.append_bin(&fname, bytes);
     Ok(())
 }
 
-fn add_basic_file(tape: &mut tape::Tape, file: &str) -> Result<()> {
-    let data = &read_file!(file)[..];
-    let fname = try!(file_name(file));
-    tape.append_basic(&fname, data);
-    Ok(())
-}
-
-fn add_ascii_file(tape: &mut tape::Tape, file: &str) -> Result<()> {
-    let data = &read_file!(file)[..];
-    let fname = try!(file_name(file));
-    tape.append_ascii(&fname, data);
-    Ok(())
-}
-
-fn add_custom_file(tape: &mut tape::Tape, file: &str) -> Result<()> {
-    let data = &read_file!(file)[..];
-    tape.append_custom(data);
-    Ok(())
-}
-
-fn save_tape(tape: &tape::Tape, file: &str) -> Result<()> {
-    let mut ofile = try!(File::create(&file));
-    for block in tape.blocks() {
-        try!(ofile.write_all(block.data()));
+fn add_basic_file(tape: &mut tape::Tape, file: &Path) -> Result<()> {
+    let data = try!(file::read_content(file));
+    let (fname, truncated) = try!(file::file_name_of(file));
+    if truncated {
+        println!("Warning: file name truncated to {}", String::from_utf8_lossy(&fname));
     }
+    tape.append_basic(&fname, &data);
     Ok(())
 }
 
-fn export(cas_path: &str, wav_path: &str) -> Result<()> {
-    let tape = open_tape!(cas_path);
+fn add_ascii_file(tape: &mut tape::Tape, file: &Path) -> Result<()> {
+    let data = try!(file::read_content(file));
+    let (fname, truncated) = try!(file::file_name_of(file));
+    if truncated {
+        println!("Warning: file name truncated to {}", String::from_utf8_lossy(&fname));
+    }
+    tape.append_ascii(&fname, &data);
+    Ok(())
+}
+
+fn add_custom_file(tape: &mut tape::Tape, file: &Path) -> Result<()> {
+    let data = try!(file::read_content(file));
+    tape.append_custom(&data);
+    Ok(())
+}
+
+fn save_tape(tape: &tape::Tape, file: &Path) -> Result<()> {
+    let mut buff = Vec::with_capacity(64*1024);
+    for block in tape.blocks() {
+        try!(buff.write_all(block.data()));
+    }
+    try!(file::write_content(file, &buff));
+    Ok(())
+}
+
+fn export(cas_path: &Path, wav_path: &Path) -> Result<()> {
+    let tape = try!(Tape::from_file(cas_path));
     let mut exporter = wav::Exporter::new();
     let mut wav_file = try!(File::create(wav_path));
 
@@ -256,30 +219,4 @@ fn export(cas_path: &str, wav_path: &str) -> Result<()> {
     }
     exporter.export(&mut wav_file).ok();
     Ok(())
-}
-
-#[cfg(test)]
-mod test {
-
-    use super::file_name;
-
-    #[test]
-    fn should_extract_correct_filename() {
-        assert_eq!("foo   ".as_bytes(), file_name("foo.bin").ok().unwrap());
-        assert_eq!("foo   ".as_bytes(), file_name("foo.asc").ok().unwrap());
-        assert_eq!("foo   ".as_bytes(), file_name("foo.bas").ok().unwrap());
-        assert_eq!("foo   ".as_bytes(), file_name("../foo.bin").ok().unwrap());
-        assert_eq!("foo   ".as_bytes(), file_name("../foo.asc").ok().unwrap());
-        assert_eq!("foo   ".as_bytes(), file_name("../foo.bas").ok().unwrap());
-    }
-
-    #[test]
-    fn should_fail_extract_invalid_filename() {
-        assert!(file_name(".").is_err());
-        assert!(file_name("..").is_err());
-        assert!(file_name("./").is_err());
-        assert!(file_name("../").is_err());
-        assert!(file_name("/.").is_err());
-        assert!(file_name("/..").is_err());
-    }
 }
