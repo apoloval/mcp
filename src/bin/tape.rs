@@ -86,7 +86,7 @@ impl Block {
             let whites: &[_] = &['\0', ' '];
             from_utf8(name)
                 .ok()
-                .map(|n| n.trim_right_matches(whites))
+                .map(|n| n.trim_end_matches(whites))
         }
         else { None }
     }

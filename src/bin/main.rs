@@ -6,9 +6,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+
 extern crate byteorder;
 extern crate docopt;
-extern crate rustc_serialize;
+#[macro_use] extern crate serde_derive;
 
 #[cfg(test)] extern crate quickcheck;
 #[cfg(test)] extern crate tempdir;

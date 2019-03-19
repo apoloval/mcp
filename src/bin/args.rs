@@ -52,7 +52,7 @@ pub enum Command {
 ///
 /// This is not public. Use `Command` instead.
 ///
-#[derive(RustcDecodable)]
+#[derive(Debug, Deserialize)]
 struct Args {
     // flag_help: bool,
     flag_version: bool,
@@ -100,7 +100,7 @@ pub fn parse() -> Command {
 pub fn parse_args<I, S>(args: I) -> Command
 where S: AsRef<str>, I: Iterator<Item=S>, S: Into<String> {
     let parsed: Args = Docopt::new(USAGE)
-        .and_then(|d| d.argv(args).decode())
+        .and_then(|d| d.argv(args).deserialize())
         .unwrap_or_else(|e| e.exit());
     parsed.cmd()
 }
