@@ -1,4 +1,4 @@
-* v0.3.0 (under development)
+* v0.3.0
   - Fix several issues in modern Rust
   - Upgrade all dependencies
 
