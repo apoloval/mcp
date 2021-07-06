@@ -35,15 +35,11 @@ want.
 
 ## Download binaries
 
-Latest version of MCP is **0.2.0**. You will find installation binaries in the
-following links.
+Latest version of MCP is **0.3.0**. You will find installation binaries in the
+[GitHub releases section](https://github.com/apoloval/mcp/releases/tag/v0.3.0).
 
-* [MCP for Mac OS X 64-bits](https://bintray.com/artifact/download/apoloval/msx/mcp/v0.2.0/mcp-0.2.0.pkg)
-* [MCP for Windows 32-bits](https://bintray.com/artifact/download/apoloval/msx/mcp/v0.2.0/mcp-0.2.0_x86.exe)
-* [MCP for Windows 64-bits](https://bintray.com/artifact/download/apoloval/msx/mcp/v0.2.0/mcp-0.2.0_x64.exe)
-
-If your operating system is not listed above, please try to build from sources
-as described below.
+If there is no package for your operating system and architecture there, please 
+try to build from sources as described below.
 
 ## Build from sources
 
