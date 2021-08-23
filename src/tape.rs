@@ -197,7 +197,7 @@ impl Tape {
     pub fn new() -> Tape { Tape { blocks: vec![] }}
 
     pub fn from_file(filename: &Path) -> io::Result<Tape> {
-        let mut file = try!(fs::File::open(filename));
+        let mut file = fs::File::open(filename)?;
         Tape::read(&mut file)
     }
 
@@ -210,7 +210,7 @@ impl Tape {
 	#[allow(dead_code)]
 	pub fn read<R: Read>(input: &mut R) -> io::Result<Tape> {
 		let mut bytes: Vec<u8> = vec![];
-		try!(input.read_to_end(&mut bytes));
+		input.read_to_end(&mut bytes)?;
 		Ok(Tape::from_bytes(&bytes[..]))
 	}
 

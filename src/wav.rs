@@ -50,8 +50,8 @@ impl Exporter {
 	/// calling this method, you must use the `write_X()` functions to encode
 	/// some data.
 	pub fn export<W: Write>(&self, w: &mut W) -> io::Result<()> {
-		try!(self.write_wave(w));
-		try!(w.write(&*self.buffer));
+		self.write_wave(w)?;
+		w.write(&*self.buffer)?;
 		Ok(())
 	}
 
@@ -70,7 +70,7 @@ impl Exporter {
 		let to = pulses * self.bauds / 1200;
 		let mut nbytes = 0;
 		for _ in 0..to {
-			nbytes += try!(self.write_pulse(SHORT_PULSE));
+			nbytes += self.write_pulse(SHORT_PULSE)?;
 		}
 		Ok(nbytes)
 	}
@@ -91,7 +91,7 @@ impl Exporter {
 	pub fn write_silence(&mut self, pulses: u32) ->  io::Result<usize> {
 		let mut nbytes = 0;
 		for _ in 0..pulses {
-			nbytes += try!(self.buffer.write(&[0x80]));
+			nbytes += self.buffer.write(&[0x80])?;
 		}
 		Ok(nbytes)
 	}
@@ -100,7 +100,7 @@ impl Exporter {
 	pub fn write_data(&mut self, data: &[u8]) -> io::Result<usize> {
 		let mut nbytes = 0;
 		for byte in data {
-			nbytes += try!(self.write_byte(*byte));
+			nbytes += self.write_byte(*byte)?;
 		}
 		Ok(nbytes)
 	}
@@ -110,62 +110,62 @@ impl Exporter {
 		let file_len = data_len + 44;
 
 		// RIFF chunk start
-		try!(write!(w, "RIFF"));
+		write!(w, "RIFF")?;
 
 		// RIFF chunk length (size of overall file)
-		try!(w.write_u32::<LittleEndian>(file_len));
+		w.write_u32::<LittleEndian>(file_len)?;
 
 		// WAVE chunk start
-		try!(write!(w, "WAVE"));
+		write!(w, "WAVE")?;
 
 		// Format chunk start
-		try!(write!(w, "fmt "));
+		write!(w, "fmt ")?;
 
 		// Format chunk length
-		try!(w.write_u32::<LittleEndian>(16));
+		w.write_u32::<LittleEndian>(16)?;
 
 		// Type of format (PCM)
-		try!(w.write_u16::<LittleEndian>(1));
+		w.write_u16::<LittleEndian>(1)?;
 
 		// Number of channels
-		try!(w.write_u16::<LittleEndian>(1));
+		w.write_u16::<LittleEndian>(1)?;
 
 		// Sample rate
-		try!(w.write_u32::<LittleEndian>(self.sample_rate));
+		w.write_u32::<LittleEndian>(self.sample_rate)?;
 
 		// Sample rate * bits per sample * channels / 8
-		try!(w.write_u32::<LittleEndian>(self.sample_rate));
+		w.write_u32::<LittleEndian>(self.sample_rate)?;
 
 		// Bits per sample * channels
-		try!(w.write_u16::<LittleEndian>(8));
+		w.write_u16::<LittleEndian>(8)?;
 
 		// Bits per sample
-		try!(w.write_u16::<LittleEndian>(8));
+		w.write_u16::<LittleEndian>(8)?;
 
 		// Data chunk start
-		try!(write!(w, "data"));
+		write!(w, "data")?;
 
 		// Data chunk length
-		try!(w.write_u32::<LittleEndian>(data_len));
+		w.write_u32::<LittleEndian>(data_len)?;
 
 		Ok(())
 	}
 
 	fn write_byte(&mut self, byte: u8) -> io::Result<usize> {
 		let mut nbytes = 0;
-		nbytes += try!(self.write_pulse(LONG_PULSE));
+		nbytes += self.write_pulse(LONG_PULSE)?;
 		let mut bits = byte;
 		for _ in 0..8 {
 			if bits & 0x01 > 0 {
-				nbytes += try!(self.write_pulse(SHORT_PULSE));
-				nbytes += try!(self.write_pulse(SHORT_PULSE));
+				nbytes += self.write_pulse(SHORT_PULSE)?;
+				nbytes += self.write_pulse(SHORT_PULSE)?;
 			} else {
-				nbytes += try!(self.write_pulse(LONG_PULSE));
+				nbytes += self.write_pulse(LONG_PULSE)?;
 			}
 			bits = bits >> 1;
 		}
 		for _ in 0..4 {
-			nbytes += try!(self.write_pulse(SHORT_PULSE));
+			nbytes += self.write_pulse(SHORT_PULSE)?;
 		}
 		Ok(nbytes)
 	}

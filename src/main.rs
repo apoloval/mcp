@@ -71,7 +71,7 @@ fn print_version() -> Result<()> {
 }
 
 fn list_files(path: &Path) -> Result<()> {
-    let tape = try!(tape::Tape::from_file(path));
+    let tape = tape::Tape::from_file(path)?;
     for file in tape.files() {
         match file {
             tape::File::Bin(name, begin, end, start, data) => {
@@ -94,43 +94,43 @@ fn list_files(path: &Path) -> Result<()> {
 }
 
 fn extract_all(path: &Path) -> Result<()> {
-    let tape = try!(tape::Tape::from_file(path));
+    let tape = tape::Tape::from_file(path)?;
     let mut next_custom = 0;
     for file in tape.files() {
         let out_path = file.name()
             .map(|n| n.to_string())
             .unwrap_or_else(|| format!("custom.{:03}", { next_custom += 1; next_custom }));
         print!("Extracting {}... ", out_path);
-        try!(extract_file(&file, Path::new(&out_path)));
+        extract_file(&file, Path::new(&out_path))?;
         println!("Done");
     }
     Ok(())
 }
 
 fn extract_file(file: &tape::File, out_path: &Path) -> Result<()> {
-    let (out_filename, clash) = try!(file::unique_filename(out_path));
+    let (out_filename, clash) = file::unique_filename(out_path)?;
     if clash {
         print!("Warning: filename {:?} already exists, writing output to {:?}... ",
             out_path, out_filename);
     }
-    let mut ofile = try!(File::create(&out_filename));
+    let mut ofile = File::create(&out_filename)?;
     match file {
         &tape::File::Bin(_, _, _, _, data) => {
             // First, write the BIN file ID byte not present in cassete
-            try!(ofile.write_all(&[0xfe]));
-            try!(ofile.write_all(data));
+            ofile.write_all(&[0xfe])?;
+            ofile.write_all(data)?;
         },
         &tape::File::Basic(_, data) => {
-            try!(ofile.write_all(data));
+            ofile.write_all(data)?;
         },
         &tape::File::Ascii(_, ref chunks) => {
             for chunk in chunks {
                 let last = chunk.iter().position(|b| *b == 0x1a).unwrap_or(chunk.len());
-                try!(ofile.write_all(&chunk[..last]));
+                ofile.write_all(&chunk[..last])?;
             }
         },
         &tape::File::Custom(ref data) => {
-            try!(ofile.write_all(data));
+            ofile.write_all(data)?;
         },
     }
     Ok(())
@@ -141,28 +141,28 @@ fn add_files(path: &Path, files: &[&Path]) -> Result<()> {
     for file in files {
         if file::is_bin_file(file) {
             print!("Adding binary file {:?}... ", file.as_os_str());
-            try!(add_bin_file(&mut tape, &file));
+            add_bin_file(&mut tape, &file)?;
         } else if file::is_ascii_file(file) {
             print!("Adding ascii file {:?}... ", file.as_os_str());
-            try!(add_ascii_file(&mut tape, &file));
+            add_ascii_file(&mut tape, &file)?;
         } else if file::is_basic_file(file) {
             print!("Adding basic file {:?}... ", file.as_os_str());
-            try!(add_basic_file(&mut tape, &file));
+            add_basic_file(&mut tape, &file)?;
         } else {
             print!("Adding custom file {:?}... ", file.as_os_str());
-            try!(add_custom_file(&mut tape, &file));
+            add_custom_file(&mut tape, &file)?;
         }
         println!("Done");
     }
-    try!(save_tape(&tape, &path));
+    save_tape(&tape, &path)?;
     Ok(())
 }
 
 fn add_bin_file(tape: &mut tape::Tape, file: &Path) -> Result<()> {
-    let data = try!(file::read_content(file));
+    let data = file::read_content(file)?;
     // Skip bin file ID byte if present
     let bytes = if data[0] == 0xfe { &data[1..] } else { &data[..] };
-    let (fname, truncated) = try!(file::file_name_of(file));
+    let (fname, truncated) = file::file_name_of(file)?;
     if truncated {
         print!("Warning: file name truncated to {}... ", String::from_utf8_lossy(&fname));
     }
@@ -171,8 +171,8 @@ fn add_bin_file(tape: &mut tape::Tape, file: &Path) -> Result<()> {
 }
 
 fn add_basic_file(tape: &mut tape::Tape, file: &Path) -> Result<()> {
-    let data = try!(file::read_content(file));
-    let (fname, truncated) = try!(file::file_name_of(file));
+    let data = file::read_content(file)?;
+    let (fname, truncated) = file::file_name_of(file)?;
     if truncated {
         print!("Warning: file name truncated to {}... ", String::from_utf8_lossy(&fname));
     }
@@ -181,8 +181,8 @@ fn add_basic_file(tape: &mut tape::Tape, file: &Path) -> Result<()> {
 }
 
 fn add_ascii_file(tape: &mut tape::Tape, file: &Path) -> Result<()> {
-    let data = try!(file::read_content(file));
-    let (fname, truncated) = try!(file::file_name_of(file));
+    let data = file::read_content(file)?;
+    let (fname, truncated) = file::file_name_of(file)?;
     if truncated {
         print!("Warning: file name truncated to {}... ", String::from_utf8_lossy(&fname));
     }
@@ -191,7 +191,7 @@ fn add_ascii_file(tape: &mut tape::Tape, file: &Path) -> Result<()> {
 }
 
 fn add_custom_file(tape: &mut tape::Tape, file: &Path) -> Result<()> {
-    let data = try!(file::read_content(file));
+    let data = file::read_content(file)?;
     tape.append_custom(&data);
     Ok(())
 }
@@ -199,16 +199,16 @@ fn add_custom_file(tape: &mut tape::Tape, file: &Path) -> Result<()> {
 fn save_tape(tape: &tape::Tape, file: &Path) -> Result<()> {
     let mut buff = Vec::with_capacity(64*1024);
     for block in tape.blocks() {
-        try!(buff.write_all(block.data()));
+        buff.write_all(block.data())?;
     }
-    try!(file::write_content(file, &buff));
+    file::write_content(file, &buff)?;
     Ok(())
 }
 
 fn export(cas_path: &Path, wav_path: &Path) -> Result<()> {
-    let tape = try!(Tape::from_file(cas_path));
+    let tape = Tape::from_file(cas_path)?;
     let mut exporter = wav::Exporter::new();
-    let mut wav_file = try!(File::create(wav_path));
+    let mut wav_file = File::create(wav_path)?;
 
     for (block, i) in tape.blocks().iter().zip(0..tape.blocks().len()) {
         print!("Encoding block {}... ", i);

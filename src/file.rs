@@ -39,23 +39,23 @@ pub fn read_content(file: &Path) -> io::Result<Vec<u8>> {
 }
 
 pub fn write_content(path: &Path, content: &[u8]) -> io::Result<()> {
-    let temp_path = try!(temporary(path));
-    let mut file = try!(fs::File::create(&temp_path));
-    try!(file.write_all(content));
+    let temp_path = temporary(path)?;
+    let mut file = fs::File::create(&temp_path)?;
+    file.write_all(content)?;
     if exists(path) {
-        try!(remove(path));
+        remove(path)?;
     }
-    try!(fs::rename(&temp_path, path));
+    fs::rename(&temp_path, path)?;
     Ok(())
 }
 
 pub fn file_name_of(path: &Path) -> io::Result<([u8;6], bool)> {
-    let path_str = try!(path
+    let path_str = path
         .file_stem()
         .and_then(|f| f.to_str())
         .ok_or_else(|| io::Error::new(
             io::ErrorKind::InvalidInput,
-            format!("cannot convert path {:?} into string", path))));
+            format!("cannot convert path {:?} into string", path)))?;
     Ok(tape::file_name(path_str))
 }
 
@@ -86,7 +86,7 @@ pub fn unique_filename(path: &Path) -> io::Result<(PathBuf, bool)> {
 }
 
 fn unique_filename_for_suffix(path: &Path, suffix: usize) -> io::Result<PathBuf> {
-    let stem = try!(extract_from_path(path, |p| p.file_stem()));
+    let stem = extract_from_path(path, |p| p.file_stem())?;
     let ext = path.extension()
         .and_then(|e| e.to_str())
         .map(|e| format!(".{}", e))
