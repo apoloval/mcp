@@ -12,7 +12,7 @@ use std::io;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
-use tape;
+use crate::tape;
 
 pub fn exists(file: &Path) -> bool {
     if let Ok(_) = fs::File::open(file) { true } else { false }

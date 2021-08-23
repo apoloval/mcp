@@ -25,7 +25,7 @@ use std::io;
 use std::io::Write;
 use std::path::Path;
 
-use tape::Tape;
+use crate::tape::Tape;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
