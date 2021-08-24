@@ -52,8 +52,7 @@ impl Block {
     /// this pattern, `false` otherwise.
     pub fn is_bin_header(&self) -> bool {
         let data = self.data_without_prefix();
-        data.len() == 16
-            && data[..10] == [0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0]
+        data[..10] == [0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0]
     }
 
     /// Returns `true` if the block is detected as a Basic header.
@@ -63,8 +62,7 @@ impl Block {
     /// this pattern, `false` otherwise.
     pub fn is_basic_header(&self) -> bool {
         let data = self.data_without_prefix();
-        data.len() == 16
-            && data[..10] == [0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3]
+        data[..10] == [0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3]
     }
 
     /// Returns `true` if the block is detected as an ASCII header.
@@ -74,8 +72,7 @@ impl Block {
     /// this pattern, `false` otherwise.
     pub fn is_ascii_header(&self) -> bool {
         let data = self.data_without_prefix();
-        data.len() == 16
-            && data[..10] == [0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea]
+        data[..10] == [0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea]
     }
 
     /// Returns `true` if the block is detected as a file header (either bin, basic or ascii).
