@@ -282,11 +282,20 @@ impl Tape {
     /// * `data`: the binary file content
     ///
     pub fn append_basic(&mut self, name: &[u8; 6], data: &[u8]) -> io::Result<usize> {
+        // Skip tokenized basic file ID byte if present
+        let bytes = if data[0] == 0xff {
+            &data[1..]
+        } else {
+            &data[..]
+        };
+
+        Self::validate_basic(&bytes)?;
+
         let hblock = Block::from_data(&[
             0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, name[0], name[1], name[2],
             name[3], name[4], name[5],
         ]);
-        let dblock = Block::from_data(data);
+        let dblock = Block::from_data(bytes);
         self.append_block(hblock, 8, 0);
         Ok(self.append_block(dblock, 8, 0))
     }
@@ -374,6 +383,19 @@ impl Tape {
             return n;
         }
         0
+    }
+
+    fn validate_basic(data: &[u8]) -> io::Result<()> {
+        if data.len() < 2 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!(
+                    "invalid basic file: it is too short ({} bytes) to contain a basic program",
+                    data.len(),
+                ),
+            ));
+        }
+        Ok(())
     }
 
     fn validate_bin(data: &[u8]) -> io::Result<()> {
@@ -681,6 +703,9 @@ mod test {
     }
 
     fn should_add_basic_file_prop(bytes: Vec<u8>) -> TestResult {
+        if Tape::validate_basic(&bytes[..]).is_err() {
+            return TestResult::discard();
+        }
         let mut tape = Tape::new();
         let (fname, _) = file_name(&"foobar");
         let padding = tape.append_basic(&fname, &bytes[..]).unwrap();
