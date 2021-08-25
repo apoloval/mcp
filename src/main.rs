@@ -151,57 +151,48 @@ fn extract_file(file: &tape::File, out_path: &Path) -> Result<()> {
 }
 
 fn add_files(path: &Path, files: &[&Path]) -> Result<()> {
-    let mut align_warning = false;
+    let mut padding = 0;
     let mut tape = Tape::from_file(path).unwrap_or_else(|_| Tape::new());
     for file in files {
         if file::is_bin_file(file) {
-            print!("Adding binary file {:?}... ", file.as_os_str());
-            if add_bin_file(&mut tape, &file)? % 8 == 0 {
-                println!("Done");
-            } else {
-                align_warning = true;
-                println!("Done (bad alignment!)");
-            }
+            padding += add_bin_file(&mut tape, &file)?;
         } else if file::is_ascii_file(file) {
-            print!("Adding ascii file {:?}... ", file.as_os_str());
             add_ascii_file(&mut tape, &file)?;
-            println!("Done");
         } else if file::is_basic_file(file) {
-            print!("Adding basic file {:?}... ", file.as_os_str());
-            if add_basic_file(&mut tape, &file)? % 8 == 0 {
-                println!("Done");
-            } else {
-                align_warning = true;
-                println!("Done (bad alignment!)");
-            }
+            padding += add_basic_file(&mut tape, &file)?;
         } else {
-            print!("Adding custom file {:?}... ", file.as_os_str());
-            if add_custom_file(&mut tape, &file)? % 8 == 0 {
-                println!("Done");
-            } else {
-                align_warning = true;
-                println!("Done (bad alignment!)");
-            }
+            padding += add_custom_file(&mut tape, &file)?;
         };
     }
     save_tape(&tape, &path)?;
 
-    if align_warning {
-        println!("\nWarning: some files had lengths that are not 8-byte aligned. ");
-        println!("This caused MCP to pad them with trailing zeroes. It is recommended");
-        println!("to assemble your binary files so that their length is multiple of 8.");
+    if padding > 0 {
+        println!("");
+        println!("Warning: some files had lengths that required padding with zeroes to be aligned");
+        println!("to 8-byte boundaries. This is a constraint of CAS file format: every data block");
+        println!("must start in an offset divisible by 8.");
+        println!("");
+        println!("For binary files, this means the total length of the file excluding the");
+        println!("0x1F prefix must be 8-byte aligned.");
+        println!("");
+        println!("For ASCII files, this does not affect you. ASCII files are always aligned to");
+        println!("256-byte boundaries and padded with EOF values (0x1A) needed by MSX BIOS to");
+        println!("detect the end of the file.");
+        println!("");
+        println!("For custom files, the effect is unknown. These files are loaded using custom");
+        println!("code. And if padding zeroes affect or not depends on that code.");
+        println!("");
+        println!("Using the right file sizes is highly recommended to prevent problems. However");
+        println!("this is not considered as an error, and your CAS package has been successfully");
+        println!("generated.");
     }
     Ok(())
 }
 
 fn add_bin_file(tape: &mut tape::Tape, file: &Path) -> Result<usize> {
+    print!("Adding binary file {:?}... ", file.as_os_str());
+
     let data = file::read_content(file)?;
-    // Skip bin file ID byte if present
-    let bytes = if data[0] == 0xfe {
-        &data[1..]
-    } else {
-        &data[..]
-    };
     let (fname, truncated) = file::file_name_of(file)?;
     if truncated {
         print!(
@@ -209,11 +200,19 @@ fn add_bin_file(tape: &mut tape::Tape, file: &Path) -> Result<usize> {
             String::from_utf8_lossy(&fname)
         );
     }
-    tape.append_bin(&fname, bytes);
-    Ok(bytes.len())
+
+    let padding = tape.append_bin(&fname, &data)?;
+    if padding == 0 {
+        println!("Done");
+    } else {
+        println!("Done (padded with {} bytes!)", padding);
+    }
+    Ok(padding)
 }
 
 fn add_basic_file(tape: &mut tape::Tape, file: &Path) -> Result<usize> {
+    print!("Adding basic file {:?}... ", file.as_os_str());
+
     let data = file::read_content(file)?;
     let (fname, truncated) = file::file_name_of(file)?;
     if truncated {
@@ -222,11 +221,20 @@ fn add_basic_file(tape: &mut tape::Tape, file: &Path) -> Result<usize> {
             String::from_utf8_lossy(&fname)
         );
     }
-    tape.append_basic(&fname, &data);
-    Ok(data.len())
+
+    let padding = tape.append_basic(&fname, &data)?;
+
+    if padding == 0 {
+        println!("Done");
+    } else {
+        println!("Done (padded with {} bytes!)", padding);
+    }
+    Ok(padding)
 }
 
 fn add_ascii_file(tape: &mut tape::Tape, file: &Path) -> Result<usize> {
+    print!("Adding ascii file {:?}... ", file.as_os_str());
+
     let data = file::read_content(file)?;
     let (fname, truncated) = file::file_name_of(file)?;
     if truncated {
@@ -235,14 +243,24 @@ fn add_ascii_file(tape: &mut tape::Tape, file: &Path) -> Result<usize> {
             String::from_utf8_lossy(&fname)
         );
     }
-    tape.append_ascii(&fname, &data);
-    Ok(data.len())
+    let padding = tape.append_ascii(&fname, &data)?;
+    println!("Done");
+    Ok(padding)
 }
 
 fn add_custom_file(tape: &mut tape::Tape, file: &Path) -> Result<usize> {
+    print!("Adding custom file {:?}... ", file.as_os_str());
+
     let data = file::read_content(file)?;
-    tape.append_custom(&data);
-    Ok(data.len())
+    let append = tape.append_custom(&data)?;
+
+    if append == 0 {
+        println!("Done");
+    } else {
+        println!("Done (padded with {} bytes!)", append);
+    }
+
+    Ok(append)
 }
 
 fn save_tape(tape: &tape::Tape, file: &Path) -> Result<()> {

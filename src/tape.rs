@@ -252,15 +252,24 @@ impl Tape {
     ///   obtain it from a regular string.
     /// * `data`: the binary file content
     ///
-    pub fn append_bin(&mut self, name: &[u8; 6], data: &[u8]) {
+    pub fn append_bin(&mut self, name: &[u8; 6], data: &[u8]) -> io::Result<usize> {
+        // Skip bin file ID byte if present
+        let bytes = if data[0] == 0xfe {
+            &data[1..]
+        } else {
+            &data[..]
+        };
+
+        Self::validate_bin(&bytes)?;
+
         let hblock = Block::from_data(&[
             0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, 0xd0, name[0], name[1], name[2],
             name[3], name[4], name[5],
         ]);
-        let dblock = Block::from_data(data);
+        let dblock = Block::from_data(bytes);
 
-        self.append_block(hblock);
-        self.append_block(dblock);
+        self.append_block(hblock, 8, 0);
+        Ok(self.append_block(dblock, 8, 0))
     }
 
     /// Append a binary file to this tape
@@ -272,14 +281,14 @@ impl Tape {
     ///   obtain it from a regular string.
     /// * `data`: the binary file content
     ///
-    pub fn append_basic(&mut self, name: &[u8; 6], data: &[u8]) {
+    pub fn append_basic(&mut self, name: &[u8; 6], data: &[u8]) -> io::Result<usize> {
         let hblock = Block::from_data(&[
             0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, 0xd3, name[0], name[1], name[2],
             name[3], name[4], name[5],
         ]);
         let dblock = Block::from_data(data);
-        self.append_block(hblock);
-        self.append_block(dblock);
+        self.append_block(hblock, 8, 0);
+        Ok(self.append_block(dblock, 8, 0))
     }
 
     /// Append an ASCII file to this tape
@@ -296,28 +305,31 @@ impl Tape {
     /// EOF byte. As result, the last block is padded with EOFs until it occupies 256 bytes.
     /// If the text length is a multiple of 256, the last block is 256 EOF bytes.
     ///
-    pub fn append_ascii(&mut self, name: &[u8; 6], data: &[u8]) {
+    pub fn append_ascii(&mut self, name: &[u8; 6], data: &[u8]) -> io::Result<usize> {
         let hblock = Block::from_data(&[
             0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, name[0], name[1], name[2],
             name[3], name[4], name[5],
         ]);
-        self.append_block(hblock);
+        self.append_block(hblock, 8, 0);
+
+        let mut padding = 0;
         for chunk in data.chunks(256) {
             let dblock = Block::from_data(chunk);
-            self.append_block(dblock);
+            if chunk.len() < 256 {
+                padding += self.append_block(dblock, 256, 0x1a);
+            }
         }
-        if data.len() % 256 == 0 {
-            // We need another block for the EOFs
-            let eofs: [u8; 256] = [0x1a; 256];
-            self.append_block(Block::from_data(&eofs));
-        } else {
-            self.extend_last_block(256, 0x1a);
+        if padding == 0 {
+            // Last block had no free space to pad it with EOFs.
+            // We need another block just to store them.
+            padding = self.append_block(Block::from_data(&[0x1a]), 256, 0x1a);
         }
+        Ok(padding)
     }
 
     /// Append a custom file to the tape.
-    pub fn append_custom(&mut self, data: &[u8]) {
-        self.blocks.push(Block::from_data(data))
+    pub fn append_custom(&mut self, data: &[u8]) -> io::Result<usize> {
+        Ok(self.append_block(Block::from_data(data), 8, 0))
     }
 
     fn parse_blocks(bytes: &[u8]) -> Vec<Block> {
@@ -347,17 +359,69 @@ impl Tape {
         blocks
     }
 
-    fn append_block(&mut self, block: Block) {
+    fn append_block(&mut self, block: Block, align: usize, padding_byte: u8) -> usize {
         self.blocks.push(block);
-        self.extend_last_block(8, 0x00)
+        self.extend_last_block(align, padding_byte)
     }
 
-    fn extend_last_block(&mut self, align: usize, padding_byte: u8) {
+    fn extend_last_block(&mut self, align: usize, padding_byte: u8) -> usize {
         if let Some(last_block) = self.blocks.last_mut() {
+            let mut n = 0;
             while last_block.data_without_prefix().len() % align != 0 {
                 last_block.data.push(padding_byte);
+                n = n + 1;
             }
+            return n;
         }
+        0
+    }
+
+    fn validate_bin(data: &[u8]) -> io::Result<()> {
+        if data.len() < 6 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!(
+                    "invalid binary file: it is too short ({} bytes) to even have a header",
+                    data.len(),
+                ),
+            ));
+        }
+
+        let begin = LittleEndian::read_u16(&data[0..2]) as usize;
+        let end = LittleEndian::read_u16(&data[2..4]) as usize;
+        let start = LittleEndian::read_u16(&data[4..6]) as usize;
+        if begin > end {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!(
+                    "invalid binary file header: BEGIN address {:X} must be below END address {:X}",
+                    begin, end,
+                ),
+            ));
+        }
+        let len = (end - begin) + 1;
+        let prog_size = data.len() - 6;
+        if len > prog_size {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!(
+                    "invalid binary file header: BEGIN and END addresses reveal a length ({} bytes) larger than program size ({} bytes)", 
+                    len, prog_size,
+                ),
+            ));
+        }
+
+        if start < begin || end < start {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!(
+                    "invalid binary file header: START address {:X} is not between BEGIN address {:X} and END address {:X}",                    
+                    start, begin, end,
+                ),
+            ));
+        }
+
+        Ok(())
     }
 }
 
@@ -587,12 +651,12 @@ mod test {
     }
 
     fn should_add_bin_file_prop(bytes: Vec<u8>) -> TestResult {
-        if bytes.len() < 6 {
+        if Tape::validate_bin(&bytes[..]).is_err() {
             return TestResult::discard();
         }
         let mut tape = Tape::new();
         let (fname, _) = file_name(&"foobar");
-        tape.append_bin(&fname, &bytes[..]);
+        let padding = tape.append_bin(&fname, &bytes[..]).unwrap();
 
         let files = Vec::from_iter(tape.files());
         require_prop!("only one file in tape", files.len() == 1);
@@ -602,7 +666,11 @@ mod test {
         );
         require_prop!(
             "block content is as expected",
-            tape.blocks()[1].data_without_prefix() == &bytes[..]
+            &tape.blocks()[1].data_without_prefix()[0..bytes.len()] == &bytes[..]
+        );
+        require_prop!(
+            "padding bytes as expected",
+            tape.blocks()[1].data_without_prefix().len() - padding == bytes.len()
         );
         TestResult::from_bool(true)
     }
@@ -615,7 +683,7 @@ mod test {
     fn should_add_basic_file_prop(bytes: Vec<u8>) -> TestResult {
         let mut tape = Tape::new();
         let (fname, _) = file_name(&"foobar");
-        tape.append_basic(&fname, &bytes[..]);
+        let padding = tape.append_basic(&fname, &bytes[..]).unwrap();
 
         let files = Vec::from_iter(tape.files());
 
@@ -626,7 +694,11 @@ mod test {
         );
         require_prop!(
             "block content is as expected",
-            tape.blocks()[1].data_without_prefix() == &bytes[..]
+            &tape.blocks()[1].data_without_prefix()[0..bytes.len()] == &bytes[..]
+        );
+        require_prop!(
+            "padding bytes as expected",
+            tape.blocks()[1].data_without_prefix().len() - padding == bytes.len()
         );
         TestResult::from_bool(true)
     }
@@ -639,7 +711,7 @@ mod test {
     fn should_add_ascii_file_prop(text: String) -> TestResult {
         let mut tape = Tape::new();
         let (fname, _) = file_name(&"foobar");
-        tape.append_ascii(&fname, text.as_bytes());
+        tape.append_ascii(&fname, text.as_bytes()).unwrap();
 
         let files = Vec::from_iter(tape.files());
 
