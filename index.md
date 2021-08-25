@@ -137,7 +137,7 @@ With `mcp -a myprogram.cas myprog.bin`, you can create a new CAS file
 You can check the contents of the new CAS file with `mcp -l`.
 
     $ mcp -l myprogram.cas
-    bin    | myprog |   100 bytes | [0x8000,0x803e]:0x8000
+    bin    | myprog |    96 bytes | [0x8000,0x8057]:0x8000
 
 The bin filename is intentionally shorten than the CAS file. Tape filenames
 are limited to six bytes. If your bin file would be `myprogram.bin` its name
@@ -148,7 +148,7 @@ would be truncated.
     Done
 
     $ mcp -l myprogram.cas
-    bin    | myprog |   100 bytes | [0x8000,0x803e]:0x8000
+    bin    | myprog |    96 bytes | [0x8000,0x8057]:0x8000
 
 MCP is able to determine the file type by the file extension with the following
 criteria:
@@ -165,20 +165,20 @@ by MSX systems to load the file successfully.
 It is possible to add new files to an existing CAS file.
 
     $ mcp -l myprogram.cas
-    bin    | myprog |   100 bytes | [0x8000,0x803e]:0x8000
+    bin    | myprog |    96 bytes | [0x8000,0x8057]:0x8000
 
     $ mcp -a myprogram.cas foobar.dat
     Adding foobar.dat... Done
 
     $ mcp -l myprogram.cas
-    bin    | myprog |   100 bytes | [0x8000,0x803e]:0x8000
+    bin    | myprog |    96 bytes | [0x8000,0x8057]:0x8000
     custom |        |  6920 bytes |
 
 Nevertheless, you don't have to add files one by one. You can specify several
 files and all them will be added to the CAS file.
 
     $ mcp -l myprogram.cas
-    bin    | myprog |   100 bytes | [0x8000,0x803e]:0x8000
+    bin    | myprog |    96 bytes | [0x8000,0x8057]:0x8000
     custom |        |  6920 bytes |
 
     $ mcp -a myprogram.cas foobar2.dat foobar3.dat
@@ -186,11 +186,56 @@ files and all them will be added to the CAS file.
     Adding foobar3.dat... Done
 
     $ mcp -l myprogram.cas
-    bin    | myprog |   100 bytes | [0x8000,0x803e]:0x8000
+    bin    | myprog |    96 bytes | [0x8000,0x8057]:0x8000
     custom |        |  6920 bytes |
     custom |        | 29648 bytes |
     custom |        | 49272 bytes |
 
+Another relevant thing about adding files to a CAS package is the validation of the input
+data and the 8-byte alignment. 
+
+If we try to add a binary file whose header indicates a file length larger than the actual
+program bytes, mcp will refuse to add it:
+
+    $ mcp -a myprogram.cas prog.bin
+    Adding prog.bin... Error: IO operation failed: invalid binary file header: BEGIN and END 
+    addresses reveal a length (123 bytes) larger than program size (122 bytes)
+
+Also, if we try to add weird things such as a tokenized Basic program file of just 1 byte, it
+will also return an error:
+
+    $ mcp -a myprogram.cas prog.bas
+    Adding prog.bas... Error: IO operation failed: invalid basic file: it is too short 
+    (1 bytes) to contain a basic program.
+
+Finally, the CAS file format is constrained by design such that any data block must be aligned
+to an 8-byte boundary. If the length your file, excluding the byte prefix that determines its type
+in binary and basic formats, is not divisible by eight, mcp will add some padding zeroes at the
+end until the 8-byte boundary is reached and will show the following warning message:
+
+    $ mcp -a myprogram.cas prog.bin
+    Adding prog.bin... Done (padded with 7 bytes!)
+
+    Warning: some files had lengths that required padding with zeroes to be aligned
+    to 8-byte boundaries. This is a constraint of CAS file format: every data block
+    must start in an offset divisible by 8.
+
+    For binary files, this means the total length of the file excluding the
+    0x1F prefix must be 8-byte aligned.
+
+    For ASCII files, this does not affect you. ASCII files are always aligned to
+    256-byte boundaries and padded with EOF values (0x1A) needed by MSX BIOS to
+    detect the end of the file.
+
+    For custom files, the effect is unknown. These files are loaded using custom
+    code. And if padding zeroes affect or not depends on that code.
+
+    Using the right file sizes is highly recommended to prevent problems. However
+    this is not considered as an error, and your CAS package has been successfully
+    generated.
+
+As the message says, it is recommended to generate your binary files such that their length
+excluding the 0xFE prefix byte is aligned to 8-byte boundaries.
 
 ### Extract package contents
 
