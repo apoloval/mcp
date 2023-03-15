@@ -1,3 +1,6 @@
+* v0.4.1:
+  - Fix a bug that caused a panic detecting type of files < 10 bytes.
+
 * v0.4.0:
   - Zero-padding of files when data blocks are not aligned with 8-byte boundaries.
   - Fix missing removal of prefix byte for tokenized BAS files
