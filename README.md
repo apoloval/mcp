@@ -30,8 +30,8 @@ want.
 
 ## Download binaries
 
-Latest version of MCP is **0.3.0**. You will find installation binaries in the
-[GitHub releases section](https://github.com/apoloval/mcp/releases/tag/v0.3.0).
+Latest version of MCP is **0.4.1**. You will find installation binaries in the
+[GitHub releases section](https://github.com/apoloval/mcp/releases/tag/v0.4.1).
 
 If there is no package for your operating system and architecture there, please 
 try to build from sources as described below.

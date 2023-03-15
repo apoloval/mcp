@@ -1,5 +1,5 @@
 #define AppName "MSX CAS Packager"
-#define AppVersion "0.4.0"
+#define AppVersion "0.4.1"
 
 [setup]
 AppCopyright=Copyright (C) 2015 Alvaro Polo

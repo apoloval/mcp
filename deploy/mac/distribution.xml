@@ -9,7 +9,7 @@
     <license    file="license.html"    mime-type="text/html" />
     <!-- List all component packages -->
     <pkg-ref id="org.github.apoloval.mcp"
-             version="0.3.0"
+             version="0.4.1"
              auth="root">mcp.pkg</pkg-ref>
     <!-- List them again here. They can now be organized
          as a hierarchy if you want. -->
